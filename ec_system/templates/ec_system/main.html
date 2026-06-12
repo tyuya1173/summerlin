@@ -22,6 +22,17 @@
         </form><br>
 
         <a href="{% url 'ec_system:cart' %}">ショッピングカートを見る</a><br><br>
+
+        {% if login_user %}
+        <hr>
+        <p>ようこそ {{ login_user.name }} さん</p>
+        <ul>
+            <li><a href="">会員情報の確認</a></li>
+            <li><a href="">会員情報の変更</a></li>
+            <li><a href="{% url 'ec_system:logout' %}">ログアウト</a></li>
+        </ul>
+        {% else %}
         <a href="{% url 'ec_system:login' %}">ログイン</a>
+        {% endif %}
     </body>
 </html>

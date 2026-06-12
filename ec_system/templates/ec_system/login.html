@@ -7,22 +7,22 @@
     <body>
         <h2>ログインしてください。</h2>
 
-        <form action="" method="POST">
+        <form action="{% url 'ec_system:login' %}" method="POST">
             {% csrf_token %}
-            <table>
-                <tr>
-                    <th>会員ID</th>
-                    <td><input type="text" name="id"></td>
-                </tr>
-                <tr>
-                    <th>パスワード</th>
-                    <td><input type="text" name="password"></td>
-                </tr>
-                <tr>
-                    <td colspan="2"><input type="submit" value="ログイン"></td>
-                </tr>
-            </table>
-        </form><br>
-        <a href="">会員情報</a>
+            {% if form.non_field_errors %}
+                {% for error in form.non_field_errors %}
+                    <p class="error">{{ error }}</p>
+                {% endfor %}
+            {% endif %}
+            <div>
+                {{ form.user_id.label_tag }}
+                {{ form.user_id }}
+            </div>
+            <div>
+                {{ form.password.label_tag }}
+                {{ form.password }}
+            </div>
+            <button type="submit">ログイン</button>
+        </form>
     </body>
 </html>
