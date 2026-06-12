@@ -7,5 +7,7 @@ urlpatterns = [
     path('', views.index, name="index"),
     path('searchResult/', views.SearchResult.as_view(), name="search_result"),
     path('login/', views.Login.as_view(), name="login"),
-    path('itemDetail/<int:item_id>/', views.Itemdetail.as_view(), name="item_detail")
+    path('itemDetail/<int:item_id>/', views.Itemdetail.as_view(), name="item_detail"),
+    path("cart/add/<int:item_id>/", views.AddToCart.as_view(), name="add_to_cart"),
+    path("cart/", views.Cart.as_view(), name="cart")
 ]
