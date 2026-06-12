@@ -7,7 +7,13 @@ from . import forms
 
 
 def index(request):
-    return render(request, "ec_system/main.html")
+    form = forms.ItemSearchForm()
+    user_id = request.session.get("user_id")
+    if user_id:
+        login_user = Account.objects.filter(user_id=user_id).first()
+    else:
+        login_user = None
+    return render(request, "ec_system/main.html", {"form": form, "login_user": login_user})
 
 class SearchResult(View):
     def get(self):
@@ -34,10 +40,15 @@ class SearchResult(View):
     
 class Login(View):
     def get(self, request):
-        return render(request, 'ec_system/login.html')
+        form = forms.LoginForm()
+        return render(request, "ec_system/login.html", {"form": form})
 
     def post(self, request):
-        pass
+        form = forms.LoginForm(request.POST)
+        if form.is_valid():
+            request.session["user_id"] = form.account.user_id
+            return redirect("ec_system:index")
+        return render(request, "ec_system/login.html", {"form": form})
 
 class Itemdetail(View):
     def get(self, request, item_id):
@@ -72,3 +83,8 @@ class Cart(View):
             'total': total,
         }
         return render(request, "ec_system/cart.html", context)
+    
+class Logout(View):
+    def get(self, request):
+        request.session.flush()
+        return redirect("ec_system:login")
