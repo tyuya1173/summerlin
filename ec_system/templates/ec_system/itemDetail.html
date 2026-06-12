@@ -29,13 +29,16 @@
                 <td>{{ item.stock }}</td>
             </tr>
         </table>
-        <form action="" method="POST">
+        <form action="{% url 'ec_system:add_to_cart' item.item_id %}" method="POST">
             {% csrf_token %}
+            <input type="hidden" name="item_id" value="{{ item.item_id }}"> 
             {% for field in form %}
             {{ field.label}} {{ field }}
             {% endfor %}
+            <br>
+            <input type="submit" value="ショッピングカートに入れる">
         </form>
-        <input type="submit" value="ショッピングカートに入れる"><br><br>
+        <br>
         <a href="{% url 'ec_system:index' %}">商品検索へ</a>
     </body>
 </html>

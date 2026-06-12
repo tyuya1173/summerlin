@@ -41,10 +41,34 @@ class Login(View):
 
 class Itemdetail(View):
     def get(self, request, item_id):
-        qeryset = Item.objects.get(pk=item_id)
+        queryset = Item.objects.get(pk=item_id)
         form = forms.IteminCartForm()
         context = {
-            'item': qeryset,
+            'item': queryset,
             'form': form,
         }
         return render(request, "ec_system/itemDetail.html", context)
+    
+class AddToCart(View):
+    def post(self, request, item_id):
+        new_cart = Itemincart()
+        amount = int(request.POST["amountForm"])
+        item = item_id
+        user = "user001"
+        new_cart.amount = amount
+        new_cart.item_id = item
+        new_cart.user_id = user
+        new_cart.save()
+        return redirect("ec_system:cart")
+    
+class Cart(View):
+    def get(self, request):
+        cart_items = Itemincart.objects.filter(user_id = "user001")
+        total = 0
+        for ci in cart_items:
+            total += ci.item.price * ci.amount
+        context = {
+            'cart_items': cart_items,
+            'total': total,
+        }
+        return render(request, "ec_system/cart.html", context)
