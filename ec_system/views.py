@@ -3,6 +3,7 @@ from django.shortcuts import redirect
 from django.views.generic import View
 from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin 
 from . import models
+from . import forms
 
 
 def index(request):
@@ -37,3 +38,13 @@ class Login(View):
 
     def post(self, request):
         pass
+
+class Itemdetail(View):
+    def get(self, request, item_id):
+        qeryset = Item.objects.get(pk=item_id)
+        form = forms.IteminCartForm()
+        context = {
+            'item': qeryset,
+            'form': form,
+        }
+        return render(request, "ec_system/itemDetail.html", context)

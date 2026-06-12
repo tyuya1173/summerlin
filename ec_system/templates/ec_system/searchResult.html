@@ -15,7 +15,7 @@
             </tr>
             {% for i in item %}
             <tr>
-                <td>{{ i.name }}</td>
+                <td><a href="{% url 'ec_system:item_detail' i.item_id %}">{{ i.name }}</a></td>
                 <td>{{ i.color }}</td>
                 <td>{{ i.manufacturer }}</td>
                 <td>{{ i.price }}円</td>
