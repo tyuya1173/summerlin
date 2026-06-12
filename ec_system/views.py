@@ -88,3 +88,14 @@ class Logout(View):
     def get(self, request):
         request.session.flush()
         return redirect("ec_system:login")
+
+class RegisterUser(View):
+    def get(self, request):
+        form = forms.RegisterForm()
+        return render(request, "ec_system/registerUser.html", {"form": form})
+
+    def post(self, request):
+        form = forms.RegisterForm(request.POST)
+        if form.is_valid():
+            return render(request, "ec_system/registerUserConfirm.html", {"form": form})
+        return render(request, "ec_system/registerUser.html", {"form": form})

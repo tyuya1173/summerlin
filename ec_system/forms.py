@@ -55,3 +55,24 @@ class LoginForm(forms.Form):
                 raise forms.ValidationError("会員IDまたはパスワードが正しくありません")
             self.account = account
         return cleaned
+
+class RegisterForm(forms.Form):
+    user_id = forms.CharField(label="会員ID", max_length=128)
+    password = forms.CharField(label="パスワード", max_length=256)
+    password_confirm = forms.CharField(label="パスワード(確認)", max_length=256)
+    name = forms.CharField(label="お名前", max_length=128)
+    address = forms.CharField(label="ご住所", max_length=256)
+
+    def clean_user_id(self):
+        user_id = self.cleaned_data["user_id"]
+        if Account.objects.filter(user_id=user_id).exists():
+            raise forms.ValidationError("この会員IDは既に使われています")
+        return user_id
+
+    def clean(self):
+        cleaned = super().clean()
+        pw = cleaned.get("password")
+        pw2 = cleaned.get("password_confirm")
+        if pw and pw2 and pw != pw2:
+            self.add_error("password_confirm", "パスワードが一致しません")
+        return cleaned
