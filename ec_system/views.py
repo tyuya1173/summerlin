@@ -2,8 +2,8 @@ from django.shortcuts import render
 from django.shortcuts import redirect
 from django.views.generic import View
 from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin 
-from . import models
 from . import forms
+from django.db import transaction
 
 
 def index(request):
@@ -98,4 +98,22 @@ class RegisterUser(View):
         form = forms.RegisterForm(request.POST)
         if form.is_valid():
             return render(request, "ec_system/registerUserConfirm.html", {"form": form})
+        return render(request, "ec_system/registerUser.html", {"form": form})
+    
+class RegisterCommit(View):
+    def post(self, request):
+        form = forms.RegisterForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                Account.objects.create(
+                    user_id=form.cleaned_data["user_id"],
+                    password=form.cleaned_data["password"],
+                    name=form.cleaned_data["name"],
+                    address=form.cleaned_data["address"],
+                )
+                context = {
+                    "name": form.cleaned_data["name"],
+                }
+            return render(request,"ec_system/registerUserCommit.html", context)
+        
         return render(request, "ec_system/registerUser.html", {"form": form})

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>会員情報の登録</title>
+    </head>
+    <body>
+        <h2>以下の情報で登録しますか？</h2>
+        <form action="{% url 'ec_system:register_commit' %}" method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="password_confirm" value="{{ form.password_confirm.value }}">
+            <table border="1">
+                <tr>
+                    <th>会員ID</th>
+                    <td><input type="text" name="user_id" value="{{ form.user_id.value }}"></td>
+                </tr>
+                <tr>
+                    <th>パスワード</th>
+                    <td><input type="password" name="password" value="{{ form.password.value }}"></td>
+                </tr>
+                <tr>
+                    <th>お名前</th>
+                    <td><input type="text" name="name" value="{{ form.name.value }}"></td>
+                </tr>
+                <tr>
+                    <th>ご住所</th>
+                    <td><input type="text" name="address" value="{{ form.address.value }}"></td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="text-align: center;"><input type="submit" value="登録"></td>
+                </tr>
+            </table>
+        </form>
+        <br>
+        <a href="{% url 'ec_system:index' %}">商品検索へ</a>
+    </body>
+</html>
+

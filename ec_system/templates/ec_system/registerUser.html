@@ -6,7 +6,7 @@
     </head>
     <body>
         <h2>会員情報を登録してください</h2>
-        <form action="" method="post">
+        <form action="{% url 'ec_system:register_user' %}" method="post">
             {% csrf_token %}
             {% if form.non_field_errors %}
             <div>{{ form.non_field_errors.0 }}</div>
@@ -21,6 +21,7 @@
             </div>
             {% endfor %}
             <button type="submit">登録確認</button>
-        </form>
+        </form><br>
+        <a href="{% url 'ec_system:index' %}">商品検索へ</a>
     </body>
 </html>

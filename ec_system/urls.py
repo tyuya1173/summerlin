@@ -11,5 +11,6 @@ urlpatterns = [
     path("cart/add/<int:item_id>/", views.AddToCart.as_view(), name="add_to_cart"),
     path("cart/", views.Cart.as_view(), name="cart"),
     path("logout/", views.Logout.as_view(), name="logout"),
-    path("registerUser/", views.RegisterUser.as_view(), name="register_user")
+    path("registerUser/", views.RegisterUser.as_view(), name="register_user"),
+    path("register/commit/", views.RegisterCommit.as_view(), name="register_commit")
 ]
