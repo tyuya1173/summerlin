@@ -268,3 +268,26 @@ class UpdateCart(View):
                 cart_item.amount = amount
                 cart_item.update(amount=amount)
             return redirect("ec_system:cart")
+        
+class PurchaseConfirm(View):
+    def post(self, request):
+        login_user = is_login(request)
+        if login_user is None:
+            return redirect("ec_system:login")
+
+        user_id = request.session.get("user_id")
+        cart_items = Itemincart.objects.filter(user_id=user_id)
+        
+        if not cart_items.exists():
+            return redirect("ec_system:cart")
+
+        total = 0
+        for ci in cart_items:
+            total += ci.item.price * ci.amount
+
+        context = {
+            "login_user": login_user,
+            "cart_items": cart_items,
+            "total": total,
+        }
+        return render(request, "ec_system/purchaseConfirm.html", context)

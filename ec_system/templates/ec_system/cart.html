@@ -6,45 +6,53 @@
     </head>
     <body>
         <h2>ショッピングカート内の商品一覧</h2>
-        <table border="1">
-            <th>
-                <tr>
-                    <th>商品名</th>
-                    <th>商品の色</th>
-                    <th>メーカー名</th>
-                    <th>単価</th>
-                    <th>数量</th>
-                </tr>
-            </th>
-            <td>
-                {% for ci in cart_items %}
-                <tr>
-                    <td>{{ ci.item.name }}</td>
-                    <td>{{ ci.item.color }}</td>
-                    <td>{{ ci.item.manufacturer }}</td>
-                    <td>{{ ci.item.price }}円</td>
-                    <td>{{ ci.amount }}個</td>
+        <form action="{% url 'ec_system:purchase_confirm' %}" method="post">
+            <table border="1">
+                <th>
+                    <tr>
+                        <th>商品名</th>
+                        <th>商品の色</th>
+                        <th>メーカー名</th>
+                        <th>単価</th>
+                        <th>数量</th>
+                    </tr>
+                </th>
+                <td>
+                    {% for ci in cart_items %}
+                    <tr>
+                        <td>{{ ci.item.name }}</td>
+                        <td>{{ ci.item.color }}</td>
+                        <td>{{ ci.item.manufacturer }}</td>
+                        <td>{{ ci.item.price }}円</td>
+                        <td>{{ ci.amount }}個</td>
 
-                    <td>
-                        <form action="{% url 'ec_system:update_cart' ci.id %}" method="post">
-                            {% csrf_token %}
-                            <input type="number" name="amountForm" value="{{ ci.amount }}">
-                            <button type="submit">更新</button>
-                        </form>
-                    </td>
+                        <td>
+                            <form action="{% url 'ec_system:update_cart' ci.id %}" method="post">
+                                {% csrf_token %}
+                                <input type="number" name="amountForm" value="{{ ci.amount }}">
+                                <button type="submit">更新</button>
+                            </form>
+                        </td>
 
-                    <td>
-                        <form action="{% url 'ec_system:delete_from_cart' ci.id %}" method="post">
-                            {% csrf_token %}
-                            <button type="submit">削除</button>
-                        </form>
-                    </td>
+                        <td>
+                            <form action="{% url 'ec_system:delete_from_cart' ci.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit">削除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">カートに商品がありません</td></tr>
+                    {% endfor %}
+                </td>
+                <tr>
+                    <td colspan="2"><p>合計 {{ total }} 円</p></td>
                 </tr>
-                {% empty %}
-                <tr><td colspan="5">カートに商品がありません</td></tr>
-                {% endfor %}
-            </td>
-        </table>
+                <tr>
+                    <td><input type="submit" value="購入する"></td>
+                </tr>
+            </table>
+        </form>
         <p>合計 {{ total }} 円</p>
         <a href="{% url 'ec_system:index' %}">商品検索へ</a>
     </body>

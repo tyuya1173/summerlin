@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>購入確認</title>
+    </head>
+    <body>
+        <h2>購入内容の確認</h2>
+        <table border="1">
+            <tr>
+                <th>商品名</th>
+                <th>単価</th>
+                <th>数量</th>
+                <th>小計</th>
+            </tr>
+            {% for ci in cart_items %}
+            <tr>
+                <td>{{ ci.item.name }}</td>
+                <td>{{ ci.item.price }}円</td>
+                <td>{{ ci.amount }}個</td>
+                <td>{{ ci.item.price|add:0 }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        <p>お届け先：{{ login_user.address }}</p>
+        <p>合計 {{ total }} 円</p>
+
+        <form action="" method="post">
+            {% csrf_token %}
+            <input type="submit" value="購入を確定する">
+        </form>
+        <a href="{% url 'ec_system:cart' %}">カートに戻る</a>
+    </body>
+</html>
