@@ -338,4 +338,18 @@ class PurchaseCommit(View):
             "purchase": purchase,
         }
         return render(request, "ec_system/purchaseCommit.html", context)
+    
+class PurchaseHistory(View):
+        def get(self, request):
+            login_user = is_login(request)
+            if login_user is None:
+                return redirect("ec_system:login")
 
+            purchases = Purchase.objects.filter(user=login_user).order_by("-booked_date")
+
+            context = {
+                "login_user": login_user,
+                "purchases": purchases,
+            }
+            return render(request, "ec_system/purchaseHistory.html", context)
+        
