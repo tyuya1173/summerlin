@@ -5,15 +5,21 @@ from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purc
 from . import forms
 from django.db import transaction
 
-
-def index(request):
-    form = forms.ItemSearchForm()
+def is_login(request):
     user_id = request.session.get("user_id")
     if user_id:
         login_user = Account.objects.filter(user_id=user_id).first()
     else:
         login_user = None
-    return render(request, "ec_system/main.html", {"form": form, "login_user": login_user})
+
+    return login_user
+
+def index(request):
+    login_user = is_login(request)
+    context = {
+        'login_user': login_user
+    }
+    return render(request, "ec_system/main.html", context)
 
 class SearchResult(View):
 
@@ -39,40 +45,53 @@ class SearchResult(View):
 class Login(View):
     def get(self, request):
         form = forms.LoginForm()
-        return render(request, "ec_system/login.html", {"form": form})
+        context = {
+            'form': form,
+        }
+        return render(request, "ec_system/login.html", context)
 
     def post(self, request):
         form = forms.LoginForm(request.POST)
         if form.is_valid():
             request.session["user_id"] = form.account.user_id
             return redirect("ec_system:index")
-        return render(request, "ec_system/login.html", {"form": form})
+        context = {
+            'form': form,
+        }
+        return render(request, "ec_system/login.html", context)
 
 class Itemdetail(View):
     def get(self, request, item_id):
+        login_user = is_login(request)
+
         queryset = Item.objects.get(pk=item_id)
         form = forms.IteminCartForm()
         context = {
             'item': queryset,
             'form': form,
+            'login_user': login_user,
         }
         return render(request, "ec_system/itemDetail.html", context)
     
 class AddToCart(View):
     def post(self, request, item_id):
+        login_user = is_login(request)
+        if login_user is None:
+            return redirect("ec_system:login")
+
+        user_id = request.session.get("user_id")
         new_cart = Itemincart()
         amount = int(request.POST["amountForm"])
-        item = item_id
-        user = "user001"
         new_cart.amount = amount
-        new_cart.item_id = item
-        new_cart.user_id = user
+        new_cart.item_id = item_id
+        new_cart.user_id = user_id
         new_cart.save()
         return redirect("ec_system:cart")
     
 class Cart(View):
     def get(self, request):
-        cart_items = Itemincart.objects.filter(user_id = "user001")
+        user_id = request.session.get("user_id")
+        cart_items = Itemincart.objects.filter(user_id = user_id)
         total = 0
         for ci in cart_items:
             total += ci.item.price * ci.amount
@@ -90,13 +109,22 @@ class Logout(View):
 class RegisterUser(View):
     def get(self, request):
         form = forms.RegisterForm()
-        return render(request, "ec_system/registerUser.html", {"form": form})
+        context = {
+            'form': form,
+        }
+        return render(request, "ec_system/registerUser.html", context)
 
     def post(self, request):
         form = forms.RegisterForm(request.POST)
         if form.is_valid():
-            return render(request, "ec_system/registerUserConfirm.html", {"form": form})
-        return render(request, "ec_system/registerUser.html", {"form": form})
+            context = {
+                'form': form,
+            }
+            return render(request, "ec_system/registerUserConfirm.html", context)
+        context = {
+            'form': form
+        }
+        return render(request, "ec_system/registerUser.html", context)
     
 class RegisterCommit(View):
     def post(self, request):
@@ -114,26 +142,25 @@ class RegisterCommit(View):
                 }
             return render(request,"ec_system/registerUserCommit.html", context)
         
-        return render(request, "ec_system/registerUser.html", {"form": form})
+        context = {
+            'form': form
+        }
+        return render(request, "ec_system/registerUser.html", context)
     
 class UserInfo(View):
     def get(self, request):
-        user_id = request.session.get("user_id")
-        if user_id:
-            login_user = Account.objects.filter(user_id=user_id).first()
-        else:
-            login_user = None
+        login_user = is_login(request)
         if login_user is None:
             return redirect("ec_system:login")
-        return render(request, "ec_system/userInfo.html", {"login_user": login_user})
+        
+        context = {
+            'login_user': login_user
+        }
+        return render(request, "ec_system/userInfo.html", context)
     
 class UpdateUser(View):
     def get(self, request):
-        user_id = request.session.get("user_id")
-        if user_id:
-            login_user = Account.objects.filter(user_id=user_id).first()
-        else:
-            login_user = None
+        login_user = is_login(request)
         if login_user is None:
             return redirect("ec_system:login")
         form = forms.UpdateUserForm(initial={"name": login_user.name, "address": login_user.address})
@@ -144,11 +171,7 @@ class UpdateUser(View):
         return render(request, "ec_system/updateUser.html", context)
 
     def post(self, request):
-        user_id = request.session.get("user_id")
-        if user_id:
-            login_user = Account.objects.filter(user_id=user_id).first()
-        else:
-            login_user = None
+        login_user = is_login(request)
         if login_user is None:
             return redirect("ec_system:login")
         form = forms.UpdateUserForm(request.POST)
@@ -158,15 +181,16 @@ class UpdateUser(View):
                 "login_user": login_user
             }
             return render(request, "ec_system/updateUserConfirm.html", context)
-        return render(request, "ec_system/updateUser.html", {"form": form, "login_user": login_user})
+        
+        context = {
+            'form': form,
+            'login_user': login_user
+        }
+        return render(request, "ec_system/updateUser.html", context)
     
 class UpdateUserCommit(View):
     def post(self, request):
-        user_id = request.session.get("user_id")
-        if user_id:
-            login_user = Account.objects.filter(user_id=user_id).first()
-        else:
-            login_user = None
+        login_user = is_login(request)
 
         if login_user is None:
             return redirect("ec_system:login")
@@ -178,28 +202,32 @@ class UpdateUserCommit(View):
                 if form.cleaned_data["password"]:
                     login_user.password = form.cleaned_data["password"]
                 login_user.save()
-            return render(request, "ec_system/updateUserCommit.html", {"login_user": login_user})
-        return render(request, "ec_system/updateUser.html", {"form": form, "login_user": login_user})
+            context = {
+                'login_user': login_user
+            }
+            return render(request, "ec_system/updateUserCommit.html", context)
+        
+        context = {
+            'form': form,
+            'login_user': login_user
+        }
+        return render(request, "ec_system/updateUser.html", context)
     
 class WithDrawConfirm(View):
     def get(self, request):
-        user_id = request.session.get("user_id")
-        if user_id:
-            login_user = Account.objects.filter(user_id=user_id).first()
-        else:
-            login_user = None
+        login_user = is_login(request)
 
         if login_user is None:
             return redirect("ec_system:login")
-        return render(request, "ec_system/withdrawConfirm.html", {"login_user": login_user})
+        
+        context = {
+            "login_user": login_user
+        }
+        return render(request, "ec_system/withdrawConfirm.html", context)
     
 class WithDrawCommit(View):
     def post(self, request):
-        user_id = request.session.get("user_id")
-        if user_id:
-            login_user = Account.objects.filter(user_id=user_id).first()
-        else:
-            login_user = None
+        login_user = is_login(request)
             
         if login_user is None:
             return redirect("ec_system:login")
@@ -207,4 +235,7 @@ class WithDrawCommit(View):
         with transaction.atomic():
             login_user.delete()
         request.session.flush()
-        return render(request, "ec_system/withdrawCommit.html", {"name": name})
+        context = {
+            "name": name
+        }
+        return render(request, "ec_system/withdrawCommit.html", context)

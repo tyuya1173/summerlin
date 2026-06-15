@@ -21,7 +21,12 @@
             <input type="submit" value="検索"/>
         </form><br>
 
+        {% if login_user %}
         <a href="{% url 'ec_system:cart' %}">ショッピングカートを見る</a><br><br>
+        {% else %}
+        <a href="{% url 'ec_system:login' %}">ショッピングカートを見る</a><br><br>
+        {% endif %}
+        
 
         {% if login_user %}
         <hr>

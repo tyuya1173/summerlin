@@ -38,6 +38,11 @@
             <br>
             <input type="submit" value="ショッピングカートに入れる">
         </form>
+        {% if login_user %}
+        <p>ログインしていない状態では、ボタンのクリック後、<a href="{% url 'ec_system:index' %}">ログイン画面</a>に転送される。</p>
+        {% else %}
+        <p>ログインしていない状態では、ボタンのクリック後、<a href="{% url 'ec_system:login' %}">ログイン画面</a>に転送される。</p>
+        {% endif %}
         <br>
         <a href="{% url 'ec_system:index' %}">商品検索へ</a>
     </body>
