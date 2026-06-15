@@ -9,24 +9,102 @@
     python manage.py seed            # データ投入(既存データはスキップ/更新)
     python manage.py seed --clear    # 全削除してから投入
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.hashers import make_password
 from django.db import transaction
+from django.apps import apps
 
-# ※ モデルの定義場所に合わせてimportを修正してください
-from ec_system.models import (
-    Account,
-    Category,
-    Item,
-    Itemincart,
-    Purchase,
-    Purchasedetail,
-    Admin,
-)
+
+class SeedDefinitionError(CommandError):
+    """サンプルデータ投入に必要なモデル/属性の定義が不足している場合に送出する例外。
+
+    CommandError を継承しているため、管理コマンド実行時には
+    長い Python のトレースバックではなく、メッセージのみがクリーンに表示される。
+    """
+    pass
 
 
 class Command(BaseCommand):
     help = "各テーブルにサンプルデータ(5件ずつ)を投入します"
+
+    REQUIRED_TABLES = {
+        "account_user": {
+            "alias": "Account",
+            "fields": ["user_id", "password", "name", "address"],
+        },
+        "shopping_category": {
+            "alias": "Category",
+            "fields": ["category_id", "name"],
+        },
+        "shopping_item": {
+            "alias": "Item",
+            "fields": ["item_id", "name", "manufacturer", "color", "price", "stock", "recommended", "category"],
+        },
+        "shopping_itemsincart": {
+            "alias": "Itemincart",
+            "fields": ["amount", "booked_date", "item", "user"],
+        },
+        "shopping_purchase": {
+            "alias": "Purchase",
+            "fields": ["purchase_id", "destination", "booked_date", "cancel", "user"],
+        },
+        "shopping_purchasedetail": {
+            "alias": "Purchasedetail",
+            "fields": ["purchase_detail_id", "amount", "item", "purchase"],
+        },
+        "administrator_admin": {
+            "alias": "Admin",
+            "fields": ["admin_id", "password"],
+        },
+    }
+
+    def load_models(self):
+        model_map = {
+            model._meta.db_table: model
+            for model in apps.get_models()
+        }
+
+        missing_tables = []
+        missing_fields = []
+
+        for table_name, info in self.REQUIRED_TABLES.items():
+            model = model_map.get(table_name)
+
+            if model is None:
+                missing_tables.append(table_name)
+                continue
+
+            model_fields = {
+                field.name
+                for field in model._meta.get_fields()
+            }
+
+            for field_name in info["fields"]:
+                if field_name not in model_fields:
+                    missing_fields.append((table_name, field_name))
+
+        if missing_tables or missing_fields:
+            messages = []
+
+            for table_name in missing_tables:
+                messages.append(
+                    f"テーブル名：{table_name} に対応するモデルが定義されていません。"
+                )
+
+            for table_name, field_name in missing_fields:
+                messages.append(
+                    f"テーブル名：{table_name} に属性名：{field_name} が定義されていません。"
+                )
+
+            raise SeedDefinitionError(
+                "サンプルデータの投入に必要なモデル定義が不足しています。\n"
+                + "\n".join(messages)
+            )
+
+        return {
+            info["alias"]: model_map[table_name]
+            for table_name, info in self.REQUIRED_TABLES.items()
+        }
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -37,6 +115,16 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        models = self.load_models()
+
+        Account = models["Account"]
+        Category = models["Category"]
+        Item = models["Item"]
+        Itemincart = models["Itemincart"]
+        Purchase = models["Purchase"]
+        Purchasedetail = models["Purchasedetail"]
+        Admin = models["Admin"]
+
         if options["clear"]:
             self.stdout.write("既存データを削除しています...")
             # 外部キー制約を考慮して子テーブルから削除
@@ -59,11 +147,11 @@ class Command(BaseCommand):
             ("user005", "password005", "高橋 健太", "北海道札幌市中央区大通西5-5-5"),
         ]
         accounts = {}
-        for user_id, raw_password, name, address in accounts_data:
+        for user_id, password, name, address in accounts_data:
             obj, created = Account.objects.update_or_create(
                 user_id=user_id,
                 defaults={
-                    "password": make_password(raw_password),
+                    "password": password,
                     "name": name,
                     "address": address,
                 },

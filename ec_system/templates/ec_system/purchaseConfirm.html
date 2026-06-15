@@ -22,11 +22,21 @@
             </tr>
             {% endfor %}
         </table>
-        <p>お届け先：{{ login_user.address }}</p>
         <p>合計 {{ total }} 円</p>
 
-        <form action="" method="post">
+        <form action="{% url 'ec_system:purchase_commit' %}" method="post">
             {% csrf_token %}
+
+            <label>お届け先：
+                <input type="text" name="destination" value="{{ login_user.address }}" size="50" required>
+            </label>
+
+            <label>お支払方法：
+                <select name="pay">
+                    <option>代金引換</option>
+                </select>
+            </label>
+
             <input type="submit" value="購入を確定する">
         </form>
         <a href="{% url 'ec_system:cart' %}">カートに戻る</a>

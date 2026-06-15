@@ -4,6 +4,7 @@ from django.views.generic import View
 from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin 
 from . import forms
 from django.db import transaction
+from django.db.models import Max 
 
 def is_login(request):
     user_id = request.session.get("user_id")
@@ -291,3 +292,50 @@ class PurchaseConfirm(View):
             "total": total,
         }
         return render(request, "ec_system/purchaseConfirm.html", context)
+    
+class PurchaseCommit(View):
+    def post(self, request):
+        login_user = is_login(request)
+        if login_user is None:
+            return redirect("ec_system:login")
+
+        user_id = request.session.get("user_id")
+        cart_items = Itemincart.objects.filter(user_id=user_id)
+
+        if not cart_items.exists():
+            return redirect("ec_system:cart")
+
+        destination = request.POST.get("destination", "").strip()
+        if not destination:
+            destination = login_user.address
+
+        with transaction.atomic():
+            last_purchase_id = Purchase.objects.aggregate(m=Max("purchase_id"))["m"] or 0
+            new_purchase_id = last_purchase_id + 1
+
+            purchase = Purchase.objects.create(
+                purchase_id=new_purchase_id,
+                destination=destination,
+                user=login_user,
+            )
+
+            last_detail_id = Purchasedetail.objects.aggregate(m=Max("purchase_detail_id"))["m"] or 0
+            next_detail_id = last_detail_id + 1
+
+            for ci in cart_items:
+                Purchasedetail.objects.create(
+                    purchase_detail_id=next_detail_id,
+                    amount=ci.amount,
+                    item=ci.item,
+                    purchase=purchase,
+                )
+                next_detail_id += 1
+
+            cart_items.delete()
+
+        context = {
+            "login_user": login_user,
+            "purchase": purchase,
+        }
+        return render(request, "ec_system/purchaseCommit.html", context)
+

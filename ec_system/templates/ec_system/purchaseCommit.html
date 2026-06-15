@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html>
+    <head><meta charset="UTF-8"><title>購入完了</title></head>
+    <body>
+        <h2>ご購入ありがとうございました</h2>
+        <p>注文番号：{{ purchase.purchase_id }}</p>
+        <p>お届け先：{{ purchase.destination }}</p>
+        <a href="{% url 'ec_system:index' %}">商品検索へ戻る</a>
+    </body>
+</html>
