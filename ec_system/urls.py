@@ -18,4 +18,6 @@ urlpatterns = [
     path("user/update/commit", views.UpdateUserCommit.as_view(), name="update_user_commit"),
     path("withdrawConfirm/", views.WithDrawConfirm.as_view(), name="withdraw_confirm"),
     path("withdrawCommit/", views.WithDrawCommit.as_view(), name="withdraw_commit"),
+    path("cart/delete/<int:cart_id>/", views.DeleteFromCart.as_view(), name="delete_from_cart"),
+    path("cart/update/<int:cart_id>/", views.UpdateCart.as_view(), name="update_cart"),
 ]

@@ -239,3 +239,32 @@ class WithDrawCommit(View):
             "name": name
         }
         return render(request, "ec_system/withdrawCommit.html", context)
+    
+class DeleteFromCart(View):
+    def post(self, request, cart_id):
+        login_user = is_login(request)
+        if login_user is None:
+            return redirect("ec_system:login")
+
+        user_id = request.session.get("user_id")
+        cart_item = Itemincart.objects.filter(id = cart_id, user_id = user_id)
+        cart_item.delete()
+        return redirect("ec_system:cart")
+    
+class UpdateCart(View):
+        def post(self, request, cart_id):
+            login_user = is_login(request)
+            if login_user is None:
+                return redirect("ec_system:login")
+
+            user_id = request.session.get("user_id")
+            cart_item = Itemincart.objects.filter(id = cart_id, user_id = user_id)
+
+            amount = int(request.POST["amountForm"])
+            if amount <= 0:
+
+                cart_item.delete()
+            else:
+                cart_item.amount = amount
+                cart_item.update(amount=amount)
+            return redirect("ec_system:cart")
