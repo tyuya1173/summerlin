@@ -3,6 +3,12 @@ from .models import Category, Account
 
 class ItemSearchForm(forms.Form):
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = [("all", "すべて")]
+        choices += [(str(c.category_id), c.name) for c in Category.objects.all()]
+        self.fields["category"].choices = choices
+
     category = forms.ChoiceField(
         label="カテゴリ",
         required=False
@@ -13,12 +19,6 @@ class ItemSearchForm(forms.Form):
         required=False,
         max_length=128,
     )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        choices = [("all", "すべて")]
-        choices += [(str(c.category_id), c.name) for c in Category.objects.all()]
-        self.fields["category"].choices = choices
 
 class IteminCartForm(forms.Form):
     
