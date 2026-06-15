@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>退会確認</title>
+    </head>
+    <body>
+        <h2>{{ login_user.name }}さん、本当に退会しますか？</h2>
+
+        <form action="{% url 'ec_system:withdraw_commit' %}" method="post">
+            {% csrf_token %}
+            <button type="submit">退会</button>
+        </form>
+
+        <a href="{% url 'ec_system:index' %}">商品検索へ</a>
+    </body>
+</html>

@@ -180,3 +180,31 @@ class UpdateUserCommit(View):
                 login_user.save()
             return render(request, "ec_system/updateUserCommit.html", {"login_user": login_user})
         return render(request, "ec_system/updateUser.html", {"form": form, "login_user": login_user})
+    
+class WithDrawConfirm(View):
+    def get(self, request):
+        user_id = request.session.get("user_id")
+        if user_id:
+            login_user = Account.objects.filter(user_id=user_id).first()
+        else:
+            login_user = None
+
+        if login_user is None:
+            return redirect("ec_system:login")
+        return render(request, "ec_system/withdrawConfirm.html", {"login_user": login_user})
+    
+class WithDrawCommit(View):
+    def post(self, request):
+        user_id = request.session.get("user_id")
+        if user_id:
+            login_user = Account.objects.filter(user_id=user_id).first()
+        else:
+            login_user = None
+            
+        if login_user is None:
+            return redirect("ec_system:login")
+        name = login_user.name
+        with transaction.atomic():
+            login_user.delete()
+        request.session.flush()
+        return render(request, "ec_system/withdrawCommit.html", {"name": name})
