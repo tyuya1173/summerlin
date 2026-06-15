@@ -1,1 +1,3 @@
 create database shop01;
+use shop01;
+テストデータはシードで入れました。
