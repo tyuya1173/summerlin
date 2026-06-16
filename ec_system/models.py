@@ -20,6 +20,9 @@ class Category(models.Model):
     category_id = models.IntegerField(verbose_name="カテゴリID", primary_key=True)
     name = models.CharField(verbose_name="カテゴリ名", max_length=256)
 
+    def __str__(self):
+        return self.name
+
 class Item(models.Model):
 
     class Meta:

@@ -23,4 +23,10 @@ urlpatterns = [
     path("purchaseConfirm/", views.PurchaseConfirm.as_view(), name="purchase_confirm"),
     path("purchaseCommit/", views.PurchaseCommit.as_view(), name="purchase_commit"),
     path("purchaseHitory", views.PurchaseHistory.as_view(), name="purchase_history"),
+    path("admin/login", views.AdminLogin.as_view(), name="admin_login"),
+    path("admin/top", views.AdminTop.as_view(), name="admin_top"),
+    path("admin/ItemSearch", views.AdminItemSearch.as_view(), name="admin_item_search"),
+    path("admin/item/register/", views.AdminItemRegister.as_view(), name="admin_item_register"),
+    path("admin/item/edit/<int:item_id>/", views.AdminItemEdit.as_view(), name="admin_item_edit"),
+    path("admin/item/delete/<int:item_id>/", views.AdminItemDelete.as_view(), name="admin_item_delete"),
 ]

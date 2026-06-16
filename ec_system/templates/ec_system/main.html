@@ -42,6 +42,7 @@
                 <a href="{% url 'ec_system:login' %}" class="btn btn-outline-primary">ショッピングカートを見る</a>
                 {% endif %}
                 <a href="{% url 'ec_system:purchase_history' %}" class="btn btn-outline-primary">購入履歴</a>
+                <a href="{% url 'ec_system:admin_login' %}" class="btn btn-outline-primary">管理者ページ</a>
             </div>
 
             {% if login_user %}
