@@ -37,8 +37,10 @@ def cancel_purchase(purchase):
 
 def index(request):
     login_user = is_login(request)
+    recommended_items = Item.objects.filter(recommended=True)
     context = {
-        'login_user': login_user
+        'login_user': login_user,
+        'recommended_items': recommended_items,
     }
     return render(request, "ec_system/main.html", context)
 
