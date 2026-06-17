@@ -401,7 +401,7 @@ class AdminLogin(View):
         context = {
             'form': form,
         }
-        return render(request, "ec_system/login.html", context)
+        return render(request, "ec_system/adminLogin.html", context)
     
 class AdminTop(View):
     def get(self, request):
