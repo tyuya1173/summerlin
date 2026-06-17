@@ -36,10 +36,10 @@ def cancel_purchase(purchase):
         purchase.cancel = True
         purchase.save()
 
+
 def index(request):
     login_user = is_login(request)
-    recommended_items = Item.objects.filter(recommended=True)
-
+    recommendedに付与    recommended_items = Item.objects.filter(recommended=True)
     for item in recommended_items:
         sale = get_active_sale(item)
         if sale:
@@ -51,11 +51,21 @@ def index(request):
             item.sale_price = item.price
             item.discount_rate = 0
 
+    # カート内の商品数を取得
+    cart_count = 0
+    if login_user:
+        user_id = request.session.get("user_id")
+        result = Itemincart.objects.filter(user_id=user_id).aggregate(total=Sum("amount"))
+        cart_count = result["total"] or 0
+
     context = {
         'login_user': login_user,
         'recommended_items': recommended_items,
+        'cart_count': cart_count,
     }
     return render(request, "ec_system/main.html", context)
+
+
 
 class SearchResult(View):
 
@@ -127,12 +137,20 @@ class AddToCart(View):
             return redirect("ec_system:login")
 
         user_id = request.session.get("user_id")
-        new_cart = Itemincart()
         amount = int(request.POST["amountForm"])
-        new_cart.amount = amount
-        new_cart.item_id = item_id
-        new_cart.user_id = user_id
-        new_cart.save()
+        
+        cart_item=Itemincart.objects.filter(user_id=user_id, item_id=item_id).first()
+        if  cart_item:
+            cart_item.amount += amount
+            cart_item.save()
+
+        else:
+            new_cart = Itemincart()
+            new_cart.amount = amount
+            new_cart.item_id = item_id
+            new_cart.user_id = user_id
+            new_cart.save()
+
         return redirect("ec_system:cart")
     
 class Cart(View):
@@ -447,7 +465,7 @@ class AdminLogin(View):
         context = {
             'form': form,
         }
-        return render(request, "ec_system/login.html", context)
+        return render(request, "ec_system/adminLogin.html", context)
     
 class AdminTop(View):
     def get(self, request):
@@ -554,7 +572,7 @@ class AdminItemDelete(View):
     
 class Ranking(View):
     def get(self, request):
-        items = Item.objects.annotate(total_sold=Sum("purchasedetail__amount", filter=Q(purchasedetail__purchase__cancel=False))).filter(total_sold__isnull=False).order_by('-total_sold')[:3]
+        items = Item.objects.annotate(total_sold=Sum("purchasedetail__amount", filter=Q(purchasedetail__purchase__cancel=False))).filter(total_sold__isnull=False).order_by('-total_sold')[:6]
         context={
             'items':items
         }
