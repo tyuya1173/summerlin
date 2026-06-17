@@ -318,6 +318,14 @@ class PurchaseCommit(View):
             destination = login_user.address
 
         with transaction.atomic():
+            for ci in cart_items:
+                if ci.amount > ci.item.stock:
+                    context = {
+                        'cart_items': cart_items,
+                        'error': f"「{ci.item.name}」は在庫が不足しています(在庫：{ci.item.stock})",
+                    }
+                    return render(request, "ec_system/cart.html", context)
+                
             last_purchase_id = Purchase.objects.aggregate(m=Max("purchase_id"))["m"] or 0
             new_purchase_id = last_purchase_id + 1
 
@@ -337,6 +345,8 @@ class PurchaseCommit(View):
                     item=ci.item,
                     purchase=purchase,
                 )
+                ci.item.stock -= ci.amount
+                ci.item.save()
                 next_detail_id += 1
 
             cart_items.delete()
