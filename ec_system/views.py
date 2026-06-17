@@ -1,13 +1,16 @@
 from django.shortcuts import render
 from django.shortcuts import redirect
 from django.views.generic import View
-from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin, TimeSale
+from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin, TimeSale, Payment
 from . import forms
 from django.db import transaction
 from django.db.models import Max, Sum, Q
 from django.shortcuts import get_object_or_404
+import json
+import urllib.request
+import urllib.error
+from django.conf import settings
 from django.utils import timezone
-
 
 def is_login(request):
     user_id = request.session.get("user_id")
@@ -402,15 +405,71 @@ class PurchaseCommit(View):
         if not destination:
             destination = login_user.address
 
+        for ci in cart_items:
+            if ci.amount > ci.item.stock:
+                context = {
+                    "cart_items": cart_items,
+                    "error": f"「{ci.item.name}」は在庫が不足しています(在庫：{ci.item.stock})",
+                }
+                return render(request, "ec_system/cart.html", context)
+
+        total = sum(ci.item.price * ci.amount for ci in cart_items)
+        pay = request.POST.get("pay", "cod")
+
+        # カード払いのときだけ決済APIを呼ぶ
+        result = None
+        if pay == "card":
+            payload = {
+                "amount": total,
+                "currency": "JPY",
+                "card_number": request.POST.get("card_number", ""),
+                "description": f"user:{user_id}",
+            }
+            if request.POST.get("card_holder"):
+                payload["card_holder"] = request.POST["card_holder"]
+            if request.POST.get("card_exp_month"):
+                payload["card_exp_month"] = request.POST["card_exp_month"]
+            if request.POST.get("card_exp_year"):
+                payload["card_exp_year"] = request.POST["card_exp_year"]
+            if request.POST.get("card_cvc"):
+                payload["card_cvc"] = request.POST["card_cvc"]
+
+            error_message = None
+            req = urllib.request.Request(
+                f"{settings.PAYMENT_API_BASE}/payments/charge",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "X-API-Key": settings.PAYMENT_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=settings.PAYMENT_API_TIMEOUT) as res:
+                    body = json.loads(res.read().decode("utf-8"))
+                if body.get("status") == "succeeded":
+                    result = body
+                else:
+                    error_message = body.get("error", {}).get("message", "決済に失敗しました")
+            except urllib.error.HTTPError as e:
+                try:
+                    err = json.loads(e.read().decode("utf-8")).get("error", {})
+                    error_message = err.get("message", "決済リクエストに失敗しました")
+                except Exception:
+                    error_message = "決済リクエストに失敗しました"
+            except urllib.error.URLError:
+                error_message = "決済サーバーに接続できませんでした"
+
+            if error_message:
+                context = {
+                    "login_user": login_user,
+                    "cart_items": cart_items,
+                    "total": total,
+                    "payment_error": error_message,
+                }
+                return render(request, "ec_system/purchaseConfirm.html", context)
+
         with transaction.atomic():
-            for ci in cart_items:
-                if ci.amount > ci.item.stock:
-                    context = {
-                        'cart_items': cart_items,
-                        'error': f"「{ci.item.name}」は在庫が不足しています(在庫：{ci.item.stock})",
-                    }
-                    return render(request, "ec_system/cart.html", context)
-                
             last_purchase_id = Purchase.objects.aggregate(m=Max("purchase_id"))["m"] or 0
             new_purchase_id = last_purchase_id + 1
 
@@ -438,6 +497,16 @@ class PurchaseCommit(View):
                 next_detail_id += 1
 
             cart_items.delete()
+
+            if result is not None:
+                Payment.objects.create(
+                    purchase=purchase,
+                    transaction_id=result["transaction_id"],
+                    card_last4=result.get("card_last4"),
+                    amount=total,
+                    currency="JPY",
+                    status=result.get("status", "succeeded"),
+                )
 
         context = {
             "login_user": login_user,

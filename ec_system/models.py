@@ -89,6 +89,18 @@ class Admin(models.Model):
     admin_id = models.CharField(verbose_name="管理者ID", primary_key=True, max_length=128)
     password = models.CharField(verbose_name="パスワード", max_length=256)
 
+class Payment(models.Model):
+
+    class Meta:
+        db_table = "shopping_payment"
+
+    purchase = models.OneToOneField(Purchase, verbose_name="注文ID", on_delete=models.CASCADE)
+    transaction_id = models.CharField(verbose_name="決済取引ID", max_length=36)
+    card_last4 = models.CharField(verbose_name="カード下4桁", max_length=4, null=True, blank=True)
+    amount = models.IntegerField(verbose_name="決済金額")
+    currency = models.CharField(verbose_name="通貨", max_length=3, default="JPY")
+    status = models.CharField(verbose_name="決済状態", max_length=16, default="succeeded")
+    created_at = models.DateTimeField(verbose_name="決済日時", auto_now_add=True)
 
 class TimeSale(models.Model):
     sale_id = models.AutoField(primary_key=True)

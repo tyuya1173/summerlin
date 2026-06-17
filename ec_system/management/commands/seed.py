@@ -10,7 +10,6 @@
     python manage.py seed --clear    # 全削除してから投入
 """
 from django.core.management.base import BaseCommand, CommandError
-from django.contrib.auth.hashers import make_password
 from django.db import transaction
 from django.apps import apps
 
@@ -283,7 +282,7 @@ class Command(BaseCommand):
         for admin_id, raw_password in admins_data:
             Admin.objects.update_or_create(
                 admin_id=admin_id,
-                defaults={"password": make_password(raw_password)},
+                defaults={"password": raw_password},
             )
         self.stdout.write(self.style.SUCCESS(f"管理者: {len(admins_data)}件"))
 
