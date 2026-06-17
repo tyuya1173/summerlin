@@ -4,9 +4,9 @@ from django.views.generic import View
 from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin 
 from . import forms
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Sum, Q
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
+
 
 def is_login(request):
     user_id = request.session.get("user_id")
@@ -481,4 +481,12 @@ class AdminItemDelete(View):
         item = get_object_or_404(Item, pk=item_id)
         item.delete()
         return redirect("ec_system:admin_item_search")
+    
+class Ranking(View):
+    def get(self, request):
+        items = Item.objects.annotate(total_sold=Sum("purchasedetail__amount", filter=Q(purchasedetail__purchase__cancel=False))).filter(total_sold__isnull=False).order_by('-total_sold')[:3]
+        context={
+            'items':items
+        }
+        return render(request, "ec_system/ranking.html", context)
     
