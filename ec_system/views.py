@@ -38,9 +38,17 @@ def cancel_purchase(purchase):
 def index(request):
     login_user = is_login(request)
     recommended_items = Item.objects.filter(recommended=True)
+
+    cart_count = 0
+    if login_user:
+        user_id = request.session.get("user_id")
+        result = Itemincart.objects.filter(user_id=user_id).aggregate(total=Sum("amount"))
+        cart_count = result["total"] or 0
+
     context = {
         'login_user': login_user,
         'recommended_items': recommended_items,
+        'cart_count': cart_count,
     }
     return render(request, "ec_system/main.html", context)
 
