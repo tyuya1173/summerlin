@@ -1,11 +1,12 @@
 from django.shortcuts import render
 from django.shortcuts import redirect
 from django.views.generic import View
-from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin 
+from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin, TimeSale
 from . import forms
 from django.db import transaction
 from django.db.models import Max, Sum, Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 
 def is_login(request):
@@ -38,6 +39,18 @@ def cancel_purchase(purchase):
 def index(request):
     login_user = is_login(request)
     recommended_items = Item.objects.filter(recommended=True)
+
+    for item in recommended_items:
+        sale = get_active_sale(item)
+        if sale:
+            item.is_sale = True
+            item.sale_price = sale.sale_price()
+            item.discount_rate = sale.discount_rate
+        else:
+            item.is_sale = False
+            item.sale_price = item.price
+            item.discount_rate = 0
+
     context = {
         'login_user': login_user,
         'recommended_items': recommended_items,
@@ -89,6 +102,17 @@ class Itemdetail(View):
 
         queryset = Item.objects.get(pk=item_id)
         form = forms.IteminCartForm()
+
+        sale = get_active_sale(queryset)
+        if sale:
+            queryset.is_sale = True
+            queryset.sale_price = sale.sale_price()
+            queryset.discount_rate = sale.discount_rate
+        else:
+            queryset.is_sale = False
+            queryset.sale_price = queryset.price
+            queryset.discount_rate = 0
+
         context = {
             'item': queryset,
             'form': form,
@@ -113,11 +137,25 @@ class AddToCart(View):
     
 class Cart(View):
     def get(self, request):
+        login_user = is_login(request)
+        if login_user is None:
+            return redirect("ec_system:login")
+
         user_id = request.session.get("user_id")
-        cart_items = Itemincart.objects.filter(user_id = user_id)
+        cart_items = Itemincart.objects.filter(user_id=user_id)
+
         total = 0
+
         for ci in cart_items:
-            total += ci.item.price * ci.amount
+            price, discount_rate = get_display_price(ci.item)
+
+            ci.display_price = price
+            ci.discount_rate = discount_rate
+            ci.is_sale = discount_rate > 0
+            ci.subtotal = price * ci.amount
+
+            total += ci.subtotal
+
         context = {
             'cart_items': cart_items,
             'total': total,
@@ -306,7 +344,12 @@ class PurchaseConfirm(View):
 
         total = 0
         for ci in cart_items:
-            total += ci.item.price * ci.amount
+            price, discount_rate = get_display_price(ci.item)
+            ci.display_price = price
+            ci.discount_rate = discount_rate
+            ci.is_sale = discount_rate > 0
+            ci.subtotal = price * ci.amount
+            total += ci.subtotal
 
         context = {
             "login_user": login_user,
@@ -353,11 +396,14 @@ class PurchaseCommit(View):
             next_detail_id = last_detail_id + 1
 
             for ci in cart_items:
+                price, discount_rate = get_display_price(ci.item)
                 Purchasedetail.objects.create(
                     purchase_detail_id=next_detail_id,
                     amount=ci.amount,
                     item=ci.item,
                     purchase=purchase,
+                    unit_price=price,
+                    discount_rate=discount_rate,
                 )
                 ci.item.stock -= ci.amount
                 ci.item.save()
@@ -566,3 +612,53 @@ class PurchaseCancel(View):
         purchase = get_object_or_404(Purchase, pk=purchase_id, user=login_user)
         cancel_purchase(purchase)
         return redirect("ec_system:purchase_history")
+    
+
+def get_active_sale(item):
+    now = timezone.now()
+    return TimeSale.objects.filter(
+        item=item,
+        active=True,
+        start_at__lte=now,
+        end_at__gte=now
+    ).order_by("-start_at").first()
+
+
+def get_display_price(item):
+    sale = get_active_sale(item)
+    if sale:
+        return sale.sale_price(), sale.discount_rate
+    return item.price, 0
+
+
+class AdminTimeSaleRegister(View):
+    def get(self, request):
+        if is_admin(request) is None:
+            return redirect("ec_system:admin_login")
+
+        form = forms.TimeSaleForm()
+        sales = TimeSale.objects.all().order_by("-start_at")
+
+        context = {
+            "form": form,
+            "sales": sales,
+        }
+        return render(request, "ec_system/adminTimeSaleRegister.html", context)
+
+    def post(self, request):
+        if is_admin(request) is None:
+            return redirect("ec_system:admin_login")
+
+        form = forms.TimeSaleForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            return redirect("ec_system:admin_time_sale_register")
+
+        sales = TimeSale.objects.all().order_by("-start_at")
+
+        context = {
+            "form": form,
+            "sales": sales,
+        }
+        return render(request, "ec_system/adminTimeSaleRegister.html", context)

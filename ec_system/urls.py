@@ -33,4 +33,5 @@ urlpatterns = [
     path("admin/purchase/", views.AdminPurchaseSearch.as_view(), name="admin_purchase_search"),
     path("admin/purchase/cancel/<int:purchase_id>/", views.AdminPurchaseCancel.as_view(), name="admin_purchase_cancel"),
     path("purchase/cancel/<int:purchase_id>/", views.PurchaseCancel.as_view(), name="purchase_cancel"),
+    path("admin/time-sale/", views.AdminTimeSaleRegister.as_view(), name="admin_time_sale_register"),
 ]

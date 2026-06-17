@@ -49,7 +49,26 @@
                                     </a>
                                 </h4>
                                 <p class="text-muted small mb-2">{{ item.manufacturer }}</p>
-                                <p class="fw-bold mb-0 mt-auto">{{ item.price }}円</p>
+                                {% if item.is_sale %}
+                                    <div class="mt-auto">
+                                        <span class="badge bg-danger mb-2">タイムセール</span>
+
+                                        <p class="mb-1 small text-muted">
+                                            <span class="text-decoration-line-through">
+                                                {{ item.price }}円
+                                            </span>
+                                            <span class="ms-1 text-danger">
+                                                {{ item.discount_rate }}%OFF
+                                            </span>
+                                        </p>
+
+                                        <p class="fw-bold text-danger mb-0">
+                                            {{ item.sale_price }}円
+                                        </p>
+                                    </div>
+                                {% else %}
+                                    <p class="fw-bold mb-0 mt-auto">{{ item.price }}円</p>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
