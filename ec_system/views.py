@@ -103,12 +103,20 @@ class AddToCart(View):
             return redirect("ec_system:login")
 
         user_id = request.session.get("user_id")
-        new_cart = Itemincart()
         amount = int(request.POST["amountForm"])
-        new_cart.amount = amount
-        new_cart.item_id = item_id
-        new_cart.user_id = user_id
-        new_cart.save()
+        
+        cart_item=Itemincart.objects.filter(user_id=user_id, item_id=item_id).first()
+        if  cart_item:
+            cart_item.amount += amount
+            cart_item.save()
+
+        else:
+            new_cart = Itemincart()
+            new_cart.amount = amount
+            new_cart.item_id = item_id
+            new_cart.user_id = user_id
+            new_cart.save()
+
         return redirect("ec_system:cart")
     
 class Cart(View):
@@ -508,7 +516,7 @@ class AdminItemDelete(View):
     
 class Ranking(View):
     def get(self, request):
-        items = Item.objects.annotate(total_sold=Sum("purchasedetail__amount", filter=Q(purchasedetail__purchase__cancel=False))).filter(total_sold__isnull=False).order_by('-total_sold')[:3]
+        items = Item.objects.annotate(total_sold=Sum("purchasedetail__amount", filter=Q(purchasedetail__purchase__cancel=False))).filter(total_sold__isnull=False).order_by('-total_sold')[:6]
         context={
             'items':items
         }
