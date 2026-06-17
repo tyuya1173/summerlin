@@ -1,4 +1,4 @@
-#　環境構築
+# 環境構築
 
 ## ローカルにcloneする
 1. ローカルの親ディレクトリに移動する
@@ -25,7 +25,7 @@ python manage.py migrate
 
 5. テストデータを入れる
 ```
-python manage.py seed --clean
+python manage.py seed --clear
 ```
 
 6. developブランチにチェックアウトする
