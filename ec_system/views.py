@@ -39,7 +39,7 @@ def cancel_purchase(purchase):
 
 def index(request):
     login_user = is_login(request)
-    recommendedに付与    recommended_items = Item.objects.filter(recommended=True)
+    recommended_items = Item.objects.filter(recommended=True)
     for item in recommended_items:
         sale = get_active_sale(item)
         if sale:
@@ -110,21 +110,22 @@ class Itemdetail(View):
     def get(self, request, item_id):
         login_user = is_login(request)
 
-        queryset = Item.objects.get(pk=item_id)
+        item = Item.objects.get(pk=item_id)
         form = forms.IteminCartForm()
 
-        sale = get_active_sale(queryset)
+        sale = get_active_sale(item)
+
         if sale:
-            queryset.is_sale = True
-            queryset.sale_price = sale.sale_price()
-            queryset.discount_rate = sale.discount_rate
+            item.is_sale = True
+            item.sale_price = sale.sale_price()
+            item.discount_rate = sale.discount_rate
         else:
-            queryset.is_sale = False
-            queryset.sale_price = queryset.price
-            queryset.discount_rate = 0
+            item.is_sale = False
+            item.sale_price = item.price
+            item.discount_rate = 0
 
         context = {
-            'item': queryset,
+            'item': item,
             'form': form,
             'login_user': login_user,
         }
