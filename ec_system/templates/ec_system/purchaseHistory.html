@@ -14,7 +14,14 @@
             {% for purchase in purchases %}
             <div class="card shadow-sm mb-4">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center">
-                    <span><span class="text-muted">注文番号：</span><strong>{{ purchase.purchase_id }}</strong></span>
+                    <span>
+                        <span class="text-muted">注文番号：</span><strong>{{ purchase.purchase_id }}</strong>
+                        {% if purchase.cancel %}
+                        <span class="badge bg-secondary ms-2">キャンセル済</span>
+                        {% else %}
+                        <span class="badge bg-success ms-2">有効</span>
+                        {% endif %}
+                    </span>
                     <span class="text-muted small">{{ purchase.booked_date }}</span>
                 </div>
                 <div class="card-body">
@@ -39,6 +46,18 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="text-end mt-3">
+                        {% if purchase.cancel %}
+                        <span class="text-muted small">この注文はキャンセル済みです</span>
+                        {% else %}
+                        <form action="{% url 'ec_system:purchase_cancel' purchase.purchase_id %}" method="post"
+                            onsubmit="return confirm('注文番号 {{ purchase.purchase_id }} をキャンセルしますか？');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger">この注文をキャンセル</button>
+                        </form>
+                        {% endif %}
                     </div>
                 </div>
             </div>
