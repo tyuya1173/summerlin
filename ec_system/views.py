@@ -490,3 +490,47 @@ class Ranking(View):
         }
         return render(request, "ec_system/ranking.html", context)
     
+class AdminPurchaseSearch(View):
+    def get(self, request):
+        if is_admin(request) is None:
+            return redirect("ec_system:admin_login")
+        purchases = Purchase.objects.all().order_by("-booked_date")
+        context = {
+            "purchases": purchases,
+            "status": "all"
+        }
+        return render(request, "ec_system/adminPurchaseSearch.html", context)
+
+    def post(self, request):
+        if is_admin(request) is None:
+            return redirect("ec_system:admin_login")
+
+        keyword = request.POST.get("keyword", "").strip()
+        status = request.POST.get("status", "all")
+
+        purchases = Purchase.objects.all().order_by("-booked_date")
+        if keyword:
+            purchases = purchases.filter(
+                Q(user__user_id__icontains=keyword) | Q(destination__icontains=keyword)
+            )
+        if status == "active":
+            purchases = purchases.filter(cancel=False)
+        elif status == "cancelled":
+            purchases = purchases.filter(cancel=True)
+
+        context = {
+            "purchases": purchases,
+            "keyword": keyword,
+            "status": status,
+        }
+        return render(request, "ec_system/adminPurchaseSearch.html", context)
+
+
+class AdminPurchaseCancel(View):
+    def post(self, request, purchase_id):
+        if is_admin(request) is None:
+            return redirect("ec_system:admin_login")
+        purchase = get_object_or_404(Purchase, pk=purchase_id)
+        purchase.cancel = True
+        purchase.save()
+        return redirect("ec_system:admin_purchase_search")

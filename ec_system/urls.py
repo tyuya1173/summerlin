@@ -30,4 +30,7 @@ urlpatterns = [
     path("admin/item/edit/<int:item_id>/", views.AdminItemEdit.as_view(), name="admin_item_edit"),
     path("admin/item/delete/<int:item_id>/", views.AdminItemDelete.as_view(), name="admin_item_delete"),
     path("ranking/", views.Ranking.as_view(), name="ranking")
+    path("admin/purchase/", views.AdminPurchaseSearch.as_view(), name="admin_purchase_search"),
+    path("admin/purchase/cancel/<int:purchase_id>/", views.AdminPurchaseCancel.as_view(), name="admin_purchase_cancel"),
+
 ]
