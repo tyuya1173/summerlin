@@ -47,6 +47,8 @@ class SearchResult(View):
     def post(self, request):
         keyword = request.POST["keyword"]
         category = request.POST["category"]
+        price_min = request.POST.get("price_min","").strip()
+        price_max = request.POST.get("price_max","").strip()
         queryset = Item.objects.all()
         if keyword:
             queryset = queryset.filter(name__icontains=keyword)
@@ -56,9 +58,16 @@ class SearchResult(View):
         elif category == '帽子':
             queryset = queryset.filter(category__category_id = 2)
 
+        if price_min.isdigit():
+            queryset = queryset.filter(price__gte=int(price_min))
+        if price_max.isdigit():
+            queryset = queryset.filter(price__lte=int(price_max))
+
         context = {
             'keyword': keyword,
             'category': category,
+            'price_min': price_min,
+            'price_max': price_max,
             'item': queryset
         }
         return render(request, 'ec_system/searchResult.html', context)
