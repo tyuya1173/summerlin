@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 class Account(models.Model):
 
@@ -71,6 +72,10 @@ class Purchasedetail(models.Model):
     amount = models.IntegerField(verbose_name="注文数")
     item = models.ForeignKey(Item, verbose_name="商品ID", on_delete=models.CASCADE)
     purchase = models.ForeignKey(Purchase, verbose_name="注文ID", on_delete=models.CASCADE)
+    
+    unit_price = models.IntegerField(default=0)
+    discount_rate = models.IntegerField(default=0)
+
 
 class Admin(models.Model):
 
@@ -80,3 +85,28 @@ class Admin(models.Model):
 
     admin_id = models.CharField(verbose_name="管理者ID", primary_key=True, max_length=128)
     password = models.CharField(verbose_name="パスワード", max_length=256)
+
+
+class TimeSale(models.Model):
+    sale_id = models.AutoField(primary_key=True)
+
+    item = models.ForeignKey(
+        Item,
+        on_delete=models.CASCADE
+    )
+
+    discount_rate = models.IntegerField()
+    start_at = models.DateTimeField(default=timezone.now)
+    end_at = models.DateTimeField()
+
+    active = models.BooleanField(default=True)
+
+    def is_available(self):
+        now = timezone.now()
+        return self.active and self.start_at <= now <= self.end_at
+
+    def sale_price(self):
+        return int(self.item.price * (100 - self.discount_rate) / 100)
+
+    def __str__(self):
+        return f"{self.item.name} {self.discount_rate}%OFF"
