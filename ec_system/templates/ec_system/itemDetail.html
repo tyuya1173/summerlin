@@ -28,7 +28,30 @@
                         </tr>
                         <tr>
                             <th class="table-light">価格</th>
-                            <td>{{ item.price }}円</td>
+                            {% if item.is_sale %}
+                                <div class="mb-3">
+                                    <span class="badge bg-danger mb-2">タイムセール</span>
+
+                                    <p class="mb-1 text-muted">
+                                        通常価格：
+                                        <span class="text-decoration-line-through">
+                                            {{ item.price }}円
+                                        </span>
+                                    </p>
+
+                                    <p class="mb-1 text-danger">
+                                        {{ item.discount_rate }}%OFF
+                                    </p>
+
+                                    <p class="fs-4 fw-bold text-danger">
+                                        セール価格：{{ item.sale_price }}円
+                                    </p>
+                                </div>
+                            {% else %}
+                            <p class="fs-4 fw-bold">
+                                {{ item.price }}円
+                            </p>
+                        {% endif %}
                         </tr>
                         <tr>
                             <th class="table-light">在庫数</th>

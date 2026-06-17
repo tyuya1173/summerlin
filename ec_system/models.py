@@ -39,6 +39,9 @@ class Item(models.Model):
     recommended = models.BooleanField(verbose_name="オススメ", default=False)
     category = models.ForeignKey(Category, verbose_name="カテゴリID",  on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f"{self.name}（{self.price}円）"
+
 class Itemincart(models.Model):
 
     class Meta:
