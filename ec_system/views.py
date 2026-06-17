@@ -23,6 +23,18 @@ def is_admin(request):
         return Admin.objects.filter(admin_id=admin_id).first()
     return None
 
+def cancel_purchase(purchase):
+    if purchase.cancel:
+        return
+
+    with transaction.atomic():
+        details = Purchasedetail.objects.filter(purchase=purchase)
+        for detail in details:
+            detail.item.stock += detail.amount
+            detail.item.save()
+        purchase.cancel = True
+        purchase.save()
+
 def index(request):
     login_user = is_login(request)
     context = {
@@ -535,12 +547,20 @@ class AdminPurchaseSearch(View):
         }
         return render(request, "ec_system/adminPurchaseSearch.html", context)
 
-
 class AdminPurchaseCancel(View):
     def post(self, request, purchase_id):
         if is_admin(request) is None:
             return redirect("ec_system:admin_login")
         purchase = get_object_or_404(Purchase, pk=purchase_id)
-        purchase.cancel = True
-        purchase.save()
+        cancel_purchase(purchase)
         return redirect("ec_system:admin_purchase_search")
+
+class PurchaseCancel(View):
+    def post(self, request, purchase_id):
+        login_user = is_login(request)
+        if login_user is None:
+            return redirect("ec_system:login")
+
+        purchase = get_object_or_404(Purchase, pk=purchase_id, user=login_user)
+        cancel_purchase(purchase)
+        return redirect("ec_system:purchase_history")
