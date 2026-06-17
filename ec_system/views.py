@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.shortcuts import redirect
 from django.views.generic import View
-from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin, Payment
+from ec_system.models import Account, Category, Item, Itemincart, Purchase, Purchasedetail, Admin, TimeSale, Payment
 from . import forms
 from django.db import transaction
 from django.db.models import Max, Sum, Q
@@ -10,6 +10,7 @@ import json
 import urllib.request
 import urllib.error
 from django.conf import settings
+from django.utils import timezone
 
 def is_login(request):
     user_id = request.session.get("user_id")
@@ -38,18 +39,44 @@ def cancel_purchase(purchase):
         purchase.cancel = True
         purchase.save()
 
+
 def index(request):
     login_user = is_login(request)
+    recommended_items = Item.objects.filter(recommended=True)
+    for item in recommended_items:
+        sale = get_active_sale(item)
+        if sale:
+            item.is_sale = True
+            item.sale_price = sale.sale_price()
+            item.discount_rate = sale.discount_rate
+        else:
+            item.is_sale = False
+            item.sale_price = item.price
+            item.discount_rate = 0
+
+    # カート内の商品数を取得
+    cart_count = 0
+    if login_user:
+        user_id = request.session.get("user_id")
+        result = Itemincart.objects.filter(user_id=user_id).aggregate(total=Sum("amount"))
+        cart_count = result["total"] or 0
+
     context = {
-        'login_user': login_user
+        'login_user': login_user,
+        'recommended_items': recommended_items,
+        'cart_count': cart_count,
     }
     return render(request, "ec_system/main.html", context)
+
+
 
 class SearchResult(View):
 
     def post(self, request):
         keyword = request.POST["keyword"]
         category = request.POST["category"]
+        price_min = request.POST.get("price_min","").strip()
+        price_max = request.POST.get("price_max","").strip()
         queryset = Item.objects.all()
         if keyword:
             queryset = queryset.filter(name__icontains=keyword)
@@ -59,9 +86,16 @@ class SearchResult(View):
         elif category == '帽子':
             queryset = queryset.filter(category__category_id = 2)
 
+        if price_min.isdigit():
+            queryset = queryset.filter(price__gte=int(price_min))
+        if price_max.isdigit():
+            queryset = queryset.filter(price__lte=int(price_max))
+
         context = {
             'keyword': keyword,
             'category': category,
+            'price_min': price_min,
+            'price_max': price_max,
             'item': queryset
         }
         return render(request, 'ec_system/searchResult.html', context)
@@ -88,10 +122,22 @@ class Itemdetail(View):
     def get(self, request, item_id):
         login_user = is_login(request)
 
-        queryset = Item.objects.get(pk=item_id)
+        item = Item.objects.get(pk=item_id)
         form = forms.IteminCartForm()
+
+        sale = get_active_sale(item)
+
+        if sale:
+            item.is_sale = True
+            item.sale_price = sale.sale_price()
+            item.discount_rate = sale.discount_rate
+        else:
+            item.is_sale = False
+            item.sale_price = item.price
+            item.discount_rate = 0
+
         context = {
-            'item': queryset,
+            'item': item,
             'form': form,
             'login_user': login_user,
         }
@@ -104,21 +150,43 @@ class AddToCart(View):
             return redirect("ec_system:login")
 
         user_id = request.session.get("user_id")
-        new_cart = Itemincart()
         amount = int(request.POST["amountForm"])
-        new_cart.amount = amount
-        new_cart.item_id = item_id
-        new_cart.user_id = user_id
-        new_cart.save()
+        
+        cart_item=Itemincart.objects.filter(user_id=user_id, item_id=item_id).first()
+        if  cart_item:
+            cart_item.amount += amount
+            cart_item.save()
+
+        else:
+            new_cart = Itemincart()
+            new_cart.amount = amount
+            new_cart.item_id = item_id
+            new_cart.user_id = user_id
+            new_cart.save()
+
         return redirect("ec_system:cart")
     
 class Cart(View):
     def get(self, request):
+        login_user = is_login(request)
+        if login_user is None:
+            return redirect("ec_system:login")
+
         user_id = request.session.get("user_id")
-        cart_items = Itemincart.objects.filter(user_id = user_id)
+        cart_items = Itemincart.objects.filter(user_id=user_id)
+
         total = 0
+
         for ci in cart_items:
-            total += ci.item.price * ci.amount
+            price, discount_rate = get_display_price(ci.item)
+
+            ci.display_price = price
+            ci.discount_rate = discount_rate
+            ci.is_sale = discount_rate > 0
+            ci.subtotal = price * ci.amount
+
+            total += ci.subtotal
+
         context = {
             'cart_items': cart_items,
             'total': total,
@@ -307,7 +375,12 @@ class PurchaseConfirm(View):
 
         total = 0
         for ci in cart_items:
-            total += ci.item.price * ci.amount
+            price, discount_rate = get_display_price(ci.item)
+            ci.display_price = price
+            ci.discount_rate = discount_rate
+            ci.is_sale = discount_rate > 0
+            ci.subtotal = price * ci.amount
+            total += ci.subtotal
 
         context = {
             "login_user": login_user,
@@ -410,11 +483,14 @@ class PurchaseCommit(View):
             next_detail_id = last_detail_id + 1
 
             for ci in cart_items:
+                price, discount_rate = get_display_price(ci.item)
                 Purchasedetail.objects.create(
                     purchase_detail_id=next_detail_id,
                     amount=ci.amount,
                     item=ci.item,
                     purchase=purchase,
+                    unit_price=price,
+                    discount_rate=discount_rate,
                 )
                 ci.item.stock -= ci.amount
                 ci.item.save()
@@ -468,7 +544,7 @@ class AdminLogin(View):
         context = {
             'form': form,
         }
-        return render(request, "ec_system/login.html", context)
+        return render(request, "ec_system/adminLogin.html", context)
     
 class AdminTop(View):
     def get(self, request):
@@ -575,7 +651,7 @@ class AdminItemDelete(View):
     
 class Ranking(View):
     def get(self, request):
-        items = Item.objects.annotate(total_sold=Sum("purchasedetail__amount", filter=Q(purchasedetail__purchase__cancel=False))).filter(total_sold__isnull=False).order_by('-total_sold')[:3]
+        items = Item.objects.annotate(total_sold=Sum("purchasedetail__amount", filter=Q(purchasedetail__purchase__cancel=False))).filter(total_sold__isnull=False).order_by('-total_sold')[:6]
         context={
             'items':items
         }
@@ -633,3 +709,53 @@ class PurchaseCancel(View):
         purchase = get_object_or_404(Purchase, pk=purchase_id, user=login_user)
         cancel_purchase(purchase)
         return redirect("ec_system:purchase_history")
+    
+
+def get_active_sale(item):
+    now = timezone.now()
+    return TimeSale.objects.filter(
+        item=item,
+        active=True,
+        start_at__lte=now,
+        end_at__gte=now
+    ).order_by("-start_at").first()
+
+
+def get_display_price(item):
+    sale = get_active_sale(item)
+    if sale:
+        return sale.sale_price(), sale.discount_rate
+    return item.price, 0
+
+
+class AdminTimeSaleRegister(View):
+    def get(self, request):
+        if is_admin(request) is None:
+            return redirect("ec_system:admin_login")
+
+        form = forms.TimeSaleForm()
+        sales = TimeSale.objects.all().order_by("-start_at")
+
+        context = {
+            "form": form,
+            "sales": sales,
+        }
+        return render(request, "ec_system/adminTimeSaleRegister.html", context)
+
+    def post(self, request):
+        if is_admin(request) is None:
+            return redirect("ec_system:admin_login")
+
+        form = forms.TimeSaleForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            return redirect("ec_system:admin_time_sale_register")
+
+        sales = TimeSale.objects.all().order_by("-start_at")
+
+        context = {
+            "form": form,
+            "sales": sales,
+        }
+        return render(request, "ec_system/adminTimeSaleRegister.html", context)

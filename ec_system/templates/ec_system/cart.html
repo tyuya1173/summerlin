@@ -29,6 +29,7 @@
                                 <th>メーカー名</th>
                                 <th class="text-end">単価</th>
                                 <th style="width: 180px;">数量</th>
+                                <th class="text-end">小計</th>
                                 <th style="width: 90px;">削除</th>
                             </tr>
                         </thead>
@@ -38,7 +39,26 @@
                                 <td>{{ ci.item.name }}</td>
                                 <td>{{ ci.item.color }}</td>
                                 <td>{{ ci.item.manufacturer }}</td>
-                                <td class="text-end">{{ ci.item.price }}円</td>
+                                <td class="text-end">
+                                    {% if ci.is_sale %}
+                                        <div>
+                                            <span class="badge bg-danger mb-1">タイムセール</span>
+                                        </div>
+                                        <div class="small text-muted">
+                                            <span class="text-decoration-line-through">
+                                                {{ ci.item.price }}円
+                                            </span>
+                                        </div>
+                                        <div class="fw-bold text-danger">
+                                            {{ ci.display_price }}円
+                                        </div>
+                                        <div class="small text-danger">
+                                            {{ ci.discount_rate }}%OFF
+                                        </div>
+                                    {% else %}
+                                        {{ ci.item.price }}円
+                                    {% endif %}
+                                </td>
 
                                 <td>
                                     <form action="{% url 'ec_system:update_cart' ci.id %}" method="post" class="d-flex gap-1">
@@ -46,6 +66,10 @@
                                         <input type="number" name="amountForm" value="{{ ci.amount }}" min="1" class="form-control form-control-sm" style="width: 80px;">
                                         <button type="submit" class="btn btn-sm btn-outline-primary">更新</button>
                                     </form>
+                                </td>
+
+                                <td class="text-end fw-bold">
+                                    {{ ci.subtotal }}円
                                 </td>
 
                                 <td>
@@ -56,7 +80,7 @@
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="6" class="text-center text-muted py-4">カートに商品がありません</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">カートに商品がありません</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

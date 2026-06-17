@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 class Account(models.Model):
 
@@ -38,6 +39,9 @@ class Item(models.Model):
     recommended = models.BooleanField(verbose_name="オススメ", default=False)
     category = models.ForeignKey(Category, verbose_name="カテゴリID",  on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f"{self.name}（{self.price}円）"
+
 class Itemincart(models.Model):
 
     class Meta:
@@ -71,6 +75,10 @@ class Purchasedetail(models.Model):
     amount = models.IntegerField(verbose_name="注文数")
     item = models.ForeignKey(Item, verbose_name="商品ID", on_delete=models.CASCADE)
     purchase = models.ForeignKey(Purchase, verbose_name="注文ID", on_delete=models.CASCADE)
+    
+    unit_price = models.IntegerField(default=0)
+    discount_rate = models.IntegerField(default=0)
+
 
 class Admin(models.Model):
 
@@ -93,3 +101,27 @@ class Payment(models.Model):
     currency = models.CharField(verbose_name="通貨", max_length=3, default="JPY")
     status = models.CharField(verbose_name="決済状態", max_length=16, default="succeeded")
     created_at = models.DateTimeField(verbose_name="決済日時", auto_now_add=True)
+
+class TimeSale(models.Model):
+    sale_id = models.AutoField(primary_key=True)
+
+    item = models.ForeignKey(
+        Item,
+        on_delete=models.CASCADE
+    )
+
+    discount_rate = models.IntegerField()
+    start_at = models.DateTimeField(default=timezone.now)
+    end_at = models.DateTimeField()
+
+    active = models.BooleanField(default=True)
+
+    def is_available(self):
+        now = timezone.now()
+        return self.active and self.start_at <= now <= self.end_at
+
+    def sale_price(self):
+        return int(self.item.price * (100 - self.discount_rate) / 100)
+
+    def __str__(self):
+        return f"{self.item.name} {self.discount_rate}%OFF"

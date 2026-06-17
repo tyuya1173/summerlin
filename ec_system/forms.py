@@ -1,5 +1,9 @@
 from django import forms
 from .models import Account, Admin, Item
+from django.utils import timezone
+from datetime import timedelta
+from ec_system.models import TimeSale
+
 
 class IteminCartForm(forms.Form):
     
@@ -115,3 +119,37 @@ class ItemForm(forms.ModelForm):
             "recommended": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "category": forms.Select(attrs={"class": "form-select"}),
         }
+
+
+class TimeSaleForm(forms.Form):
+    item = forms.ModelChoiceField(
+        label="セール対象商品",
+        queryset=Item.objects.filter(recommended=True)
+    )
+
+    discount_rate = forms.IntegerField(
+        label="割引率（％）",
+        min_value=1,
+        max_value=90
+    )
+
+    duration_hours = forms.IntegerField(
+        label="セール時間",
+        min_value=1
+    )
+
+    def save(self):
+        item = self.cleaned_data["item"]
+        discount_rate = self.cleaned_data["discount_rate"]
+        duration_hours = self.cleaned_data["duration_hours"]
+
+        start_at = timezone.now()
+        end_at = start_at + timedelta(hours=duration_hours)
+
+        return TimeSale.objects.create(
+            item=item,
+            discount_rate=discount_rate,
+            start_at=start_at,
+            end_at=end_at,
+            active=True
+        )
