@@ -10,6 +10,11 @@
 
         <main class="container py-5" style="max-width: 720px;">
             <h2 class="h4 mb-4">購入内容の確認</h2>
+
+            {% if payment_error %}
+            <div class="alert alert-danger">{{ payment_error }}</div>
+            {% endif %}
+
             <div class="card shadow-sm mb-3">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
@@ -49,9 +54,60 @@
 
                         <div class="mb-3">
                             <label class="form-label">お支払方法</label>
-                            <select name="pay" class="form-select">
-                                <option>代金引換</option>
+                            <select name="pay" id="pay-method" class="form-select">
+                                <option value="cod">代金引換</option>
+                                <option value="card">クレジットカード</option>
                             </select>
+                        </div>
+
+                        <div id="card-fields" class="border rounded p-3 mb-3 bg-light d-none">
+                            <h3 class="h6 mb-3">カード情報</h3>
+
+                            <div class="mb-3">
+                                <label class="form-label">カード番号</label>
+                                <input type="text" name="card_number" class="form-control"
+                                       inputmode="numeric" autocomplete="cc-number"
+                                       placeholder="4242 4242 4242 4242">
+                                <div class="form-text">テスト用ダミー番号が使えます（例：4242424242424242）。</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">カード名義</label>
+                                <input type="text" name="card_holder" class="form-control"
+                                       autocomplete="cc-name" placeholder="TARO YAMADA">
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-4">
+                                    <label class="form-label">有効期限（月）</label>
+                                    <select name="card_exp_month" class="form-select">
+                                        <option value="">--</option>
+                                        {% for m in "123456789101112"|make_list %}{% endfor %}
+                                        <option value="1">01</option>
+                                        <option value="2">02</option>
+                                        <option value="3">03</option>
+                                        <option value="4">04</option>
+                                        <option value="5">05</option>
+                                        <option value="6">06</option>
+                                        <option value="7">07</option>
+                                        <option value="8">08</option>
+                                        <option value="9">09</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">有効期限（年）</label>
+                                    <input type="number" name="card_exp_year" class="form-control"
+                                           inputmode="numeric" placeholder="2030" min="2024" max="2099">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label">CVC</label>
+                                    <input type="text" name="card_cvc" class="form-control"
+                                           inputmode="numeric" autocomplete="cc-csc" placeholder="123">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="d-grid">
@@ -63,5 +119,20 @@
 
             <a href="{% url 'ec_system:cart' %}" class="btn btn-outline-secondary">カートに戻る</a>
         </main>
+
+        <script>
+            const payMethod = document.getElementById("pay-method");
+            const cardFields = document.getElementById("card-fields");
+            const cardNumber = cardFields.querySelector('[name="card_number"]');
+
+            function toggleCardFields() {
+                const isCard = payMethod.value === "card";
+                cardFields.classList.toggle("d-none", !isCard);
+                cardNumber.required = isCard;
+            }
+
+            payMethod.addEventListener("change", toggleCardFields);
+            toggleCardFields();
+        </script>
     </body>
 </html>

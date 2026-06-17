@@ -136,3 +136,8 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# 模擬決済API
+PAYMENT_API_BASE = os.environ.get("PAYMENT_API_BASE", "http://15.152.44.182/api/v1")
+PAYMENT_API_KEY = os.environ.get("PAYMENT_API_KEY", "pk_live_YSYZNvnDewC-4qALos0SFuQ52SyrBDHqeWOCy09piFE")
+PAYMENT_API_TIMEOUT = 10
