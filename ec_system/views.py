@@ -11,6 +11,7 @@ import urllib.request
 import urllib.error
 from django.conf import settings
 from django.utils import timezone
+INITIAL_POINT = 5000000
 
 def is_login(request):
     user_id = request.session.get("user_id")
@@ -33,9 +34,20 @@ def cancel_purchase(purchase):
 
     with transaction.atomic():
         details = Purchasedetail.objects.filter(purchase=purchase)
+
         for detail in details:
             detail.item.stock += detail.amount
             detail.item.save()
+
+        user = purchase.user
+        user.point += purchase.use_point
+        user.point -= purchase.earned_point
+
+        if user.point < 0:
+            user.point = 0
+
+        user.save()
+
         purchase.cancel = True
         purchase.save()
 
@@ -221,6 +233,7 @@ class RegisterUser(View):
 class RegisterCommit(View):
     def post(self, request):
         form = forms.RegisterForm(request.POST)
+
         if form.is_valid():
             with transaction.atomic():
                 Account.objects.create(
@@ -228,11 +241,15 @@ class RegisterCommit(View):
                     password=form.cleaned_data["password"],
                     name=form.cleaned_data["name"],
                     address=form.cleaned_data["address"],
+                    point=INITIAL_POINT,
                 )
+
                 context = {
                     "name": form.cleaned_data["name"],
+                    "initial_point": INITIAL_POINT,
                 }
-            return render(request,"ec_system/registerUserCommit.html", context)
+
+            return render(request, "ec_system/registerUserCommit.html", context)
         
         context = {
             'form': form
@@ -405,6 +422,19 @@ class PurchaseCommit(View):
         if not destination:
             destination = login_user.address
 
+        # 使用ポイント取得
+        try:
+            use_point = int(request.POST.get("use_point", 0))
+        except ValueError:
+            use_point = 0
+
+        if use_point < 0:
+            use_point = 0
+
+        if use_point > login_user.point:
+            use_point = login_user.point
+
+        # 在庫確認
         for ci in cart_items:
             if ci.amount > ci.item.stock:
                 context = {
@@ -413,18 +443,34 @@ class PurchaseCommit(View):
                 }
                 return render(request, "ec_system/cart.html", context)
 
-        total = sum(ci.item.price * ci.amount for ci in cart_items)
+        # タイムセール価格込みで合計計算
+        total = 0
+        for ci in cart_items:
+            price, discount_rate = get_display_price(ci.item)
+            total += price * ci.amount
+
+        # 使用ポイントは合計金額を超えないようにする
+        if use_point > total:
+            use_point = total
+
+        # 実際の支払金額
+        payment_amount = total - use_point
+
+        # 獲得ポイント：支払金額の1%
+        earned_point = payment_amount // 100
+
         pay = request.POST.get("pay", "cod")
 
         # カード払いのときだけ決済APIを呼ぶ
         result = None
         if pay == "card":
             payload = {
-                "amount": total,
+                "amount": payment_amount,
                 "currency": "JPY",
                 "card_number": request.POST.get("card_number", ""),
                 "description": f"user:{user_id}",
             }
+
             if request.POST.get("card_holder"):
                 payload["card_holder"] = request.POST["card_holder"]
             if request.POST.get("card_exp_month"):
@@ -435,6 +481,7 @@ class PurchaseCommit(View):
                 payload["card_cvc"] = request.POST["card_cvc"]
 
             error_message = None
+
             req = urllib.request.Request(
                 f"{settings.PAYMENT_API_BASE}/payments/charge",
                 data=json.dumps(payload).encode("utf-8"),
@@ -444,27 +491,40 @@ class PurchaseCommit(View):
                 },
                 method="POST",
             )
+
             try:
                 with urllib.request.urlopen(req, timeout=settings.PAYMENT_API_TIMEOUT) as res:
                     body = json.loads(res.read().decode("utf-8"))
+
                 if body.get("status") == "succeeded":
                     result = body
                 else:
                     error_message = body.get("error", {}).get("message", "決済に失敗しました")
+
             except urllib.error.HTTPError as e:
                 try:
                     err = json.loads(e.read().decode("utf-8")).get("error", {})
                     error_message = err.get("message", "決済リクエストに失敗しました")
                 except Exception:
                     error_message = "決済リクエストに失敗しました"
+
             except urllib.error.URLError:
                 error_message = "決済サーバーに接続できませんでした"
 
             if error_message:
+                for ci in cart_items:
+                    price, discount_rate = get_display_price(ci.item)
+                    ci.display_price = price
+                    ci.discount_rate = discount_rate
+                    ci.is_sale = discount_rate > 0
+                    ci.subtotal = price * ci.amount
+
                 context = {
                     "login_user": login_user,
                     "cart_items": cart_items,
                     "total": total,
+                    "use_point": use_point,
+                    "payment_amount": payment_amount,
                     "payment_error": error_message,
                 }
                 return render(request, "ec_system/purchaseConfirm.html", context)
@@ -477,6 +537,9 @@ class PurchaseCommit(View):
                 purchase_id=new_purchase_id,
                 destination=destination,
                 user=login_user,
+                use_point=use_point,
+                earned_point=earned_point,
+                payment_amount=payment_amount,
             )
 
             last_detail_id = Purchasedetail.objects.aggregate(m=Max("purchase_detail_id"))["m"] or 0
@@ -484,6 +547,7 @@ class PurchaseCommit(View):
 
             for ci in cart_items:
                 price, discount_rate = get_display_price(ci.item)
+
                 Purchasedetail.objects.create(
                     purchase_detail_id=next_detail_id,
                     amount=ci.amount,
@@ -492,9 +556,14 @@ class PurchaseCommit(View):
                     unit_price=price,
                     discount_rate=discount_rate,
                 )
+
                 ci.item.stock -= ci.amount
                 ci.item.save()
                 next_detail_id += 1
+
+            # ポイント更新
+            login_user.point = login_user.point - use_point + earned_point
+            login_user.save()
 
             cart_items.delete()
 
@@ -503,7 +572,7 @@ class PurchaseCommit(View):
                     purchase=purchase,
                     transaction_id=result["transaction_id"],
                     card_last4=result.get("card_last4"),
-                    amount=total,
+                    amount=payment_amount,
                     currency="JPY",
                     status=result.get("status", "succeeded"),
                 )
@@ -511,6 +580,10 @@ class PurchaseCommit(View):
         context = {
             "login_user": login_user,
             "purchase": purchase,
+            "total": total,
+            "use_point": use_point,
+            "payment_amount": payment_amount,
+            "earned_point": earned_point,
         }
         return render(request, "ec_system/purchaseCommit.html", context)
     

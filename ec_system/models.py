@@ -11,6 +11,7 @@ class Account(models.Model):
     password = models.CharField(verbose_name="パスワード", max_length=256)
     name = models.CharField(verbose_name="名前", max_length=128)
     address = models.CharField(verbose_name="住所",  max_length=256)
+    point = models.IntegerField(default=0)
 
 class Category(models.Model):
 
@@ -64,6 +65,9 @@ class Purchase(models.Model):
     booked_date = models.DateTimeField(verbose_name="注文日", auto_now_add=True)
     cancel = models.BooleanField(verbose_name="キャンセル", default=False)
     user = models.ForeignKey(Account, verbose_name="注文者", on_delete=models.CASCADE)
+    use_point = models.IntegerField(default=0)
+    earned_point = models.IntegerField(default=0)
+    payment_amount = models.IntegerField(default=0)
 
 class Purchasedetail(models.Model):
 

@@ -229,7 +229,12 @@
             {% if login_user %}
             <div class="card shadow-sm">
                 <div class="card-body">
-                    <p class="mb-3">ようこそ <strong>{{ login_user.name }}</strong> さん</p>
+                    <p class="mb-1">
+                        ようこそ <strong>{{ login_user.name }}</strong> さん
+                    </p>
+                    <p class="mb-3">
+                        所持ポイント：<strong>{{ login_user.point }}</strong> pt
+                    </p>
                     <div class="d-flex flex-wrap gap-2">
                         <a href="{% url 'ec_system:user_info' %}" class="btn btn-outline-secondary btn-sm">会員情報の確認</a>
                         <a href="{% url 'ec_system:update_user' %}" class="btn btn-outline-secondary btn-sm">会員情報の変更</a>
