@@ -110,6 +110,21 @@
                             </div>
                         </div>
 
+                        
+                        <div class="mb-3">
+                            <label class="form-label">使用ポイント</label>
+                            <input type="number"
+                                name="use_point"
+                                value="0"
+                                min="0"
+                                max="{{ login_user.point }}"
+                                class="form-control"
+                                style="max-width: 200px;">
+                            <div class="form-text">
+                                現在の所持ポイント：{{ login_user.point }} pt
+                            </div>
+                        </div>
+
                         <div class="d-grid">
                             <input type="submit" value="購入を確定する" class="btn btn-primary">
                         </div>

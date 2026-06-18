@@ -29,8 +29,8 @@ SECRET_KEY = 'django-insecure-gv4+hh6s(0hwk^eub#0l*(afi&ynj+)(sfj4!n&dg8##a#_-_$
 
 # SECURITY WARNING: don't run with debug turned on in production!
 ########### ページランディングエラーのテストは DEBUG = False
-#DEBUG = False
-DEBUG = True
+DEBUG = False
+# DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
