@@ -6,6 +6,96 @@
         <title>商品検索</title>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
         <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+        <style>
+            /* ===== カートでジャンプ ミニゲーム ===== */
+            #cart-game {
+                position: relative;
+                height: 180px;
+                background: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: .5rem;
+                overflow: hidden;
+                cursor: pointer;
+                user-select: none;
+                outline: none;
+            }
+            #cart-game:focus-visible { box-shadow: 0 0 0 .2rem rgba(13,110,253,.25); }
+            /* 地面ライン (プレイヤーと障害物の底辺がここに乗る) */
+            #cart-game-ground {
+                position: absolute;
+                left: 0; right: 0;
+                bottom: 28px;
+                border-bottom: 2px solid #adb5bd;
+            }
+            /* プレイヤー(カート) */
+            #cart-game-player {
+                position: absolute;
+                left: 36px;
+                bottom: 28px;          /* 地面の上に立つ */
+                font-size: 34px;
+                line-height: 1;
+                color: #0d6efd;
+                transform: translateY(0);
+                will-change: transform;
+            }
+
+            /* 障害物 (鞄・帽子の SVG を入れる箱) */
+            .cart-game-obstacle {
+                position: absolute;
+                bottom: 28px;          /* 地面の上 */
+                line-height: 0;
+            }
+            .cart-game-obstacle svg {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
+            #cart-game-message {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                color: #495057;
+                font-size: .95rem;
+                background: rgba(248,249,250,.7);
+            }
+            #cart-game-message.is-hidden { display: none; }
+            /* 出現アニメーション付きの折りたたみ */
+            #cart-game-card { display: none; }
+            #cart-game-card.is-open {
+                display: block;
+                animation: cart-card-enter .45s cubic-bezier(.2,.7,.3,1) both;
+            }
+            @keyframes cart-card-enter {
+                from { opacity: 0; transform: translateY(-16px) scale(.97); }
+                to   { opacity: 1; transform: none; }
+            }
+            #cart-game-launch-wrap.is-hidden { display: none; }
+            /* スタート演出 */
+            #cart-game-start {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 2rem;
+                font-weight: 700;
+                color: #0d6efd;
+                pointer-events: none;
+                opacity: 0;
+            }
+            #cart-game-start.go { animation: cart-start-pop .8s ease both; }
+            @keyframes cart-start-pop {
+                0%   { opacity: 0; transform: scale(.3); }
+                30%  { opacity: 1; transform: scale(1.15); }
+                60%  { opacity: 1; transform: scale(1); }
+                100% { opacity: 0; transform: scale(1); }
+            }
+        </style>        
+
     </head>
     <body class="bg-light">
 
@@ -25,6 +115,36 @@
                 <i class="bi bi-cart fs-2"></i>
             </a>
             {% endif %}
+
+            <!-- ===== カートでジャンプ ミニゲーム (Chrome dino 風) ===== -->
+            <!-- ゲーム本体: 既定は非表示。スペースキーを押すと is-open で出現する -->
+            <div id="cart-game-card" class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h3 class="h6 mb-0">カートでジャンプ！</h3>
+                        <small class="text-muted">
+                            スコア <span id="cart-game-score">0</span>
+                            ・ ハイスコア <span id="cart-game-high">0</span>
+                        </small>
+                    </div>
+
+                    <div id="cart-game" tabindex="0" role="button"
+                         aria-label="スペースキーまたはタップでカートをジャンプさせて障害物をよけるゲーム">
+                        <div id="cart-game-ground"></div>
+                        <i id="cart-game-player" class="bi bi-cart-fill"></i>
+                        <div id="cart-game-start" aria-hidden="true">スタート！</div>
+                        <div id="cart-game-message">
+                            <strong>スペース</strong> または タップで開始
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mt-2 mb-0">
+                        スペースキー（またはタップ）でジャンプ。右から来る荷物をよけよう。
+                    </p>
+                </div>
+            </div>
+            <!-- ===== /ミニゲーム ===== -->
+
             <div class="card shadow-sm mb-4">
                 <div class="card-body">
                     <form action="{% url 'ec_system:search_result' %}" method="POST">
@@ -121,5 +241,209 @@
             <a href="{% url 'ec_system:login' %}" class="btn btn-success">ログイン</a>
             {% endif %}
         </main>
+
+        <!-- ===== カートでジャンプ ミニゲーム エンジン ===== -->
+        <script>
+            (function () {
+                var area    = document.getElementById("cart-game");
+                if (!area) return;
+                var player  = document.getElementById("cart-game-player");
+                var message = document.getElementById("cart-game-message");
+                var scoreEl = document.getElementById("cart-game-score");
+                var highEl  = document.getElementById("cart-game-high");
+                var card         = document.getElementById("cart-game-card");
+                var launchWrap   = document.getElementById("cart-game-launch-wrap");
+                var launchBtn    = document.getElementById("cart-game-launch");
+                var startOverlay = document.getElementById("cart-game-start");
+                var revealed   = false;   // ゲーム画面が出現済みか
+                var startTimer = null;    // 出現後の自動スタート用
+    
+                // --- 定数 (px, 秒 単位) ---
+                var GRAVITY   = 2200;   // 落下加速度
+                var JUMP_V    = 760;    // ジャンプ初速
+                var BASE_SPEED = 320;   // 障害物の初速
+                var GROUND    = 28;     // 地面の高さ (CSS の bottom と一致)
+    
+                // 障害物の種類 (帽子 と 鞄)。w/h は viewBox 比に合わせて当たり判定とぴったり合う
+                var OB_TYPES = [
+                    { // 帽子 (シルクハット)
+                        vw: 32, vh: 24, hMin: 22, hMax: 30,
+                        svg: '<svg viewBox="0 0 32 24" xmlns="http://www.w3.org/2000/svg">' +
+                             '<rect x="10" y="4" width="12" height="15" rx="2" fill="#343a40"/>' +
+                             '<rect x="10" y="14" width="12" height="3" fill="#b5651d"/>' +
+                             '<ellipse cx="16" cy="20" rx="15" ry="3.2" fill="#343a40"/></svg>'
+                    },
+                    { // 鞄 (ショッピングバッグ)
+                        vw: 28, vh: 30, hMin: 24, hMax: 32,
+                        svg: '<svg viewBox="0 0 28 30" xmlns="http://www.w3.org/2000/svg">' +
+                             '<path d="M9 11 V7.5 A5 5 0 0 1 19 7.5 V11" fill="none" stroke="#7d4a16" stroke-width="2.4"/>' +
+                             '<path d="M5 10 H23 L21.5 29 H6.5 Z" fill="#b5651d"/>' +
+                             '<rect x="5" y="10" width="18" height="3" fill="#9c5618"/></svg>'
+                    }
+                ];
+    
+                // --- 状態 ---
+                var state = "ready";    // ready | running | over
+                var playerY = 0;        // 地面からの高さ
+                var vy = 0;
+                var obstacles = [];
+                var spawnTimer = 0;
+                var nextSpawn = 1.2;
+                var speed = BASE_SPEED;
+                var score = 0;
+                var high = 0;
+                try { high = parseInt(localStorage.getItem("cartGameHigh") || "0", 10) || 0; } catch (e) {}
+                highEl.textContent = high;
+    
+                var lastTime = null;
+    
+                function reset() {
+                    obstacles.forEach(function (o) { o.el.remove(); });
+                    obstacles = [];
+                    playerY = 0; vy = 0;
+                    spawnTimer = 0; nextSpawn = 1.2;
+                    speed = BASE_SPEED; score = 0;
+                    player.style.transform = "translateY(0)";
+                    scoreEl.textContent = "0";
+                }
+    
+                function start() {
+                    if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+                    reset();
+                    state = "running";
+                    message.classList.add("is-hidden");
+                    playStartAnim();        // 「スタート！」演出
+                    vy = JUMP_V * 0.6;      // 開始時にカートが軽くホップ
+                    lastTime = null;
+                    requestAnimationFrame(loop);
+                }
+    
+                // スタート演出を毎回再生し直す
+                function playStartAnim() {
+                    if (!startOverlay) return;
+                    startOverlay.classList.remove("go");
+                    void startOverlay.offsetWidth;   // リフローでアニメをリセット
+                    startOverlay.classList.add("go");
+                }
+    
+                function jump() {
+                    if (playerY <= 0.0001) { vy = JUMP_V; }
+                }
+    
+                function spawnObstacle() {
+                    var t = OB_TYPES[Math.floor(Math.random() * OB_TYPES.length)];
+                    var h = t.hMin + Math.floor(Math.random() * (t.hMax - t.hMin + 1));
+                    var w = Math.round(h * t.vw / t.vh);   // viewBox 比を保って歪ませない
+                    var el = document.createElement("div");
+                    el.className = "cart-game-obstacle";
+                    el.style.height = h + "px";
+                    el.style.width  = w + "px";
+                    el.style.left   = area.clientWidth + "px";
+                    el.innerHTML    = t.svg;
+                    area.appendChild(el);
+                    obstacles.push({ el: el, x: area.clientWidth, w: w, h: h });
+                }
+    
+                function gameOver() {
+                    state = "over";
+                    if (score > high) {
+                        high = score;
+                        highEl.textContent = high;
+                        try { localStorage.setItem("cartGameHigh", String(high)); } catch (e) {}
+                    }
+                    message.innerHTML = "ゲームオーバー！ スコア " + score +
+                        "<br><strong>スペース</strong> または タップでもう一度";
+                    message.classList.remove("is-hidden");
+                }
+    
+                function loop(now) {
+                    if (state !== "running") return;
+                    if (lastTime === null) lastTime = now;
+                    var dt = Math.min((now - lastTime) / 1000, 0.05); // 大きすぎる dt を防ぐ
+                    lastTime = now;
+    
+                    // プレイヤー物理
+                    vy -= GRAVITY * dt;
+                    playerY += vy * dt;
+                    if (playerY < 0) { playerY = 0; vy = 0; }
+                    player.style.transform = "translateY(" + (-playerY) + "px)";
+    
+                    // 障害物スポーン
+                    spawnTimer += dt;
+                    if (spawnTimer >= nextSpawn) {
+                        spawnTimer = 0;
+                        nextSpawn = 0.9 + Math.random() * 1.0;      // 0.9-1.9 秒
+                        spawnObstacle();
+                    }
+    
+                    // 障害物移動 + 当たり判定
+                    var pLeft = player.offsetLeft;
+                    var pW = player.offsetWidth;
+                    var pH = player.offsetHeight;
+                    var pad = 6; // 当たり判定をやや甘く
+                    for (var i = obstacles.length - 1; i >= 0; i--) {
+                        var o = obstacles[i];
+                        o.x -= speed * dt;
+                        o.el.style.left = o.x + "px";
+    
+                        // AABB 当たり判定 (底辺は両者とも GROUND)
+                        var hit =
+                            (pLeft + pad) < (o.x + o.w) &&
+                            (pLeft + pW - pad) > o.x &&
+                            (playerY) < (o.h - pad);   // プレイヤーの底からの高さ < 障害物の高さ
+                        if (hit) { gameOver(); return; }
+    
+                        if (o.x + o.w < 0) {
+                            o.el.remove();
+                            obstacles.splice(i, 1);
+                            score += 1;
+                            scoreEl.textContent = score;
+                            speed += 6; // 少しずつ加速
+                        }
+                    }
+    
+                    requestAnimationFrame(loop);
+                }
+    
+                // --- 入力 ---
+                // 初回のスペース/クリックでゲーム画面を出現させる (出現アニメ → 自動スタート)
+                function reveal() {
+                    if (revealed) return;
+                    revealed = true;
+                    if (launchWrap) launchWrap.classList.add("is-hidden");
+                    if (card) card.classList.add("is-open");
+                    message.classList.add("is-hidden");
+                    if (card && card.scrollIntoView) {
+                        card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                    }
+                    startTimer = setTimeout(start, 320);   // 出現アニメ後に自動スタート
+                }
+    
+                function handleAction() {
+                    if (!revealed) { reveal(); return; }
+                    if (state === "running") { jump(); }
+                    else { start(); }
+                }
+    
+                // ランチャーボタンからも出現できる
+                if (launchBtn) {
+                    launchBtn.addEventListener("click", function () { reveal(); });
+                }
+    
+                // ゲーム領域のクリック/タップ
+                area.addEventListener("mousedown", function (e) { e.preventDefault(); handleAction(); });
+                area.addEventListener("touchstart", function (e) { e.preventDefault(); handleAction(); }, { passive: false });
+    
+                // スペースキー (フォーム入力中は無効)
+                document.addEventListener("keydown", function (e) {
+                    if (e.code !== "Space") return;
+                    var tag = document.activeElement.tagName;
+                    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+                    e.preventDefault(); // ページのスクロールを防ぐ
+                    handleAction();
+                });
+            })();
+            </script>
+            <!-- ===== /ミニゲーム エンジン ===== -->
     </body>
 </html>
